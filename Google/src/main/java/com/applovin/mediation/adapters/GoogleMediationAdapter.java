@@ -29,12 +29,13 @@ import com.applovin.mediation.adapter.parameters.MaxAdapterInitializationParamet
 import com.applovin.mediation.adapter.parameters.MaxAdapterParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
-import com.applovin.mediation.adapters.google.BuildConfig;
 import com.applovin.mediation.nativeAds.MaxNativeAd;
 import com.applovin.mediation.nativeAds.MaxNativeAdView;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkConfiguration;
 import com.applovin.sdk.AppLovinSdkUtils;
+import com.astarsoftware.android.ads.AdNetworkTracker;
+import com.astarsoftware.dependencies.DependencyInjector;
 import com.google.ads.mediation.admob.AdMobAdapter;
 import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdFormat;
@@ -70,6 +71,7 @@ import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoa
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -159,7 +161,7 @@ public class GoogleMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-        return BuildConfig.VERSION_NAME;
+        return "20.5.0.7";
     }
 
     @Override
@@ -261,6 +263,19 @@ public class GoogleMediationAdapter
 
                 ResponseInfo responseInfo = interstitialAd.getResponseInfo();
                 String responseId = ( responseInfo != null ) ? responseInfo.getResponseId() : null;
+
+
+                // astar
+				Map<String, Object> networkInfo = new HashMap<>();
+				if (responseId != null) {
+					networkInfo.put("responseId", responseId);
+				}
+
+				AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
+				adTracker.adDidLoadForNetwork("admob", "max", "fullscreen", networkInfo);
+
+
+
                 if ( AppLovinSdk.VERSION_CODE >= 9150000 && AppLovinSdkUtils.isValidString( responseId ) )
                 {
                     Bundle extraInfo = new Bundle( 1 );
@@ -928,6 +943,18 @@ public class GoogleMediationAdapter
 
             ResponseInfo responseInfo = adView.getResponseInfo();
             String responseId = ( responseInfo != null ) ? responseInfo.getResponseId() : null;
+
+
+			// astar
+			Map<String, Object> networkInfo = new HashMap<>();
+			if (responseId != null) {
+				networkInfo.put("responseId", responseId);
+			}
+
+			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
+			adTracker.adDidLoadForNetwork("admob", "max", "banner", networkInfo);
+
+
             if ( AppLovinSdk.VERSION_CODE >= 9150000 && AppLovinSdkUtils.isValidString( responseId ) )
             {
                 Bundle extraInfo = new Bundle( 1 );

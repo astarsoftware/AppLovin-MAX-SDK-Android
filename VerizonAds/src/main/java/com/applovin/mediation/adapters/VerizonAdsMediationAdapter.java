@@ -26,6 +26,8 @@ import com.applovin.mediation.nativeAds.MaxNativeAd;
 import com.applovin.mediation.nativeAds.MaxNativeAdView;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkUtils;
+import com.astarsoftware.android.ads.AdNetworkTracker;
+import com.astarsoftware.dependencies.DependencyInjector;
 import com.verizon.ads.ActivityStateManager;
 import com.verizon.ads.Component;
 import com.verizon.ads.CreativeInfo;
@@ -113,7 +115,7 @@ public class VerizonAdsMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-        return com.applovin.mediation.adapters.verizonads.BuildConfig.VERSION_NAME;
+        return "1.14.0.3";
     }
 
     @Override
@@ -519,6 +521,18 @@ public class VerizonAdsMediationAdapter
             VerizonAdsMediationAdapter.this.interstitialAd = interstitialAd;
 
             CreativeInfo creativeInfo = interstitialAd.getCreativeInfo();
+
+
+			// astar
+			Map<String, Object> networkInfo = new HashMap<>();
+			if (creativeInfo != null) {
+				networkInfo.put("creativeId", creativeInfo.getCreativeId() != null ? creativeInfo.getCreativeId() : "???");
+			}
+
+			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
+			adTracker.adDidLoadForNetwork("verizon", "max", "fullscreen", networkInfo);
+
+
             if ( AppLovinSdk.VERSION_CODE >= 9150000 && creativeInfo != null && AppLovinSdkUtils.isValidString( creativeInfo.getCreativeId() ) )
             {
                 Bundle extraInfo = new Bundle( 1 );
@@ -701,6 +715,18 @@ public class VerizonAdsMediationAdapter
             VerizonAdsMediationAdapter.this.inlineAdView = inlineAdView;
 
             CreativeInfo creativeInfo = inlineAdView.getCreativeInfo();
+
+
+			// astar
+			Map<String, Object> networkInfo = new HashMap<>();
+			if (creativeInfo != null) {
+				networkInfo.put("creativeId", creativeInfo.getCreativeId() != null ? creativeInfo.getCreativeId() : "???");
+			}
+
+			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
+			adTracker.adDidLoadForNetwork("verizon", "max", "banner", networkInfo);
+
+
             if ( AppLovinSdk.VERSION_CODE >= 9150000 && creativeInfo != null && AppLovinSdkUtils.isValidString( creativeInfo.getCreativeId() ) )
             {
                 Bundle extraInfo = new Bundle( 1 );
