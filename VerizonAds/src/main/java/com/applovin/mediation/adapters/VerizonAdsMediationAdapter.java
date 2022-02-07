@@ -118,7 +118,7 @@ public class VerizonAdsMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-        return "1.14.0.3";
+        return "1.14.0.4";
     }
 
     @Override

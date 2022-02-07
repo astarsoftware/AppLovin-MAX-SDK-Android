@@ -165,7 +165,7 @@ public class GoogleMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-        return "20.5.0.7";
+        return "20.5.0.8";
     }
 
     @Override
