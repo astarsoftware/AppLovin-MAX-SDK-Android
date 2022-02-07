@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.Display;
@@ -113,14 +114,17 @@ public class GoogleMediationAdapter
 
         if ( initialized.compareAndSet( false, true ) )
         {
+            // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
+            Context context = ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
+
             // Prevent AdMob SDK from auto-initing its adapters in AB testing environments.
-            MobileAds.disableMediationAdapterInitialization( activity );
+            MobileAds.disableMediationAdapterInitialization( context );
 
             if ( parameters.getServerParameters().getBoolean( "init_without_callback", false ) )
             {
                 status = InitializationStatus.DOES_NOT_APPLY;
 
-                MobileAds.initialize( activity );
+                MobileAds.initialize( context );
 
                 onCompletionListener.onCompletion( status, null );
             }
@@ -128,7 +132,7 @@ public class GoogleMediationAdapter
             {
                 status = InitializationStatus.INITIALIZING;
 
-                MobileAds.initialize( activity, new OnInitializationCompleteListener()
+                MobileAds.initialize( context, new OnInitializationCompleteListener()
                 {
                     @Override
                     public void onInitializationComplete(@NonNull final com.google.android.gms.ads.initialization.InitializationStatus initializationStatus)
@@ -216,9 +220,13 @@ public class GoogleMediationAdapter
     public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
     {
         setRequestConfiguration( parameters );
-        AdRequest adRequest = createAdRequestWithParameters( true, parameters, activity );
 
-        QueryInfo.generate( activity.getApplicationContext(), toAdFormat( parameters ), adRequest, new QueryInfoGenerationCallback()
+        // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
+        Context contextToUse = ( activity != null ) ? activity : getApplicationContext();
+
+        AdRequest adRequest = createAdRequestWithParameters( true, parameters, contextToUse );
+
+        QueryInfo.generate( contextToUse, toAdFormat( parameters ), adRequest, new QueryInfoGenerationCallback()
         {
             @Override
             public void onSuccess(@NonNull final QueryInfo queryInfo)
@@ -657,7 +665,7 @@ public class GoogleMediationAdapter
         MobileAds.setRequestConfiguration( requestConfigurationBuilder.build() );
     }
 
-    private AdRequest createAdRequestWithParameters(final boolean isBiddingAd, final MaxAdapterParameters parameters, final Activity activity)
+    private AdRequest createAdRequestWithParameters(final boolean isBiddingAd, final MaxAdapterParameters parameters, final Context context)
     {
         AdRequest.Builder requestBuilder = new AdRequest.Builder();
         Bundle networkExtras = new Bundle( 4 );
@@ -707,7 +715,8 @@ public class GoogleMediationAdapter
             {
                 networkExtras.putInt( "rdp", 1 ); // Restrict data processing - https://developers.google.com/admob/android/ccpa
 
-                activity.getPreferences( Context.MODE_PRIVATE ).edit()
+                PreferenceManager.getDefaultSharedPreferences( context )
+                        .edit()
                         .putInt( "gad_rdp", 1 )
                         .commit();
             }
