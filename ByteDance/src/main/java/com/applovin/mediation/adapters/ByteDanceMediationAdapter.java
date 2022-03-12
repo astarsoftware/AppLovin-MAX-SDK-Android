@@ -62,6 +62,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import androidx.annotation.Nullable;
+
 /**
  * Created by Thomas So on April 14 2020
  */
@@ -151,30 +153,12 @@ public class ByteDanceMediationAdapter
             status = InitializationStatus.INITIALIZING;
             final Bundle serverParameters = parameters.getServerParameters();
             final String appId = serverParameters.getString( "app_id" );
-            log( "Initializing ByteDance SDK with app id: " + appId + "..." );
+            log( "Initializing SDK with app id: " + appId + "..." );
 
             TTAdConfig.Builder builder = new TTAdConfig.Builder();
 
             // Set mediation provider
-            try
-            {
-                JSONArray data = new JSONArray();
-                JSONObject mediationObject = new JSONObject();
-                mediationObject.putOpt( "name", "mediation" );
-                mediationObject.putOpt( "value", "MAX" );
-                data.put( mediationObject );
-
-                JSONObject adapterVersionObject = new JSONObject();
-                adapterVersionObject.putOpt( "name", "adapter_version" );
-                adapterVersionObject.putOpt( "value", getAdapterVersion() );
-                data.put( adapterVersionObject );
-
-                builder.data( data.toString() );
-            }
-            catch ( Throwable th )
-            {
-                log( "Failed to set mediation provider", th );
-            }
+            builder.data( createAdConfigData( serverParameters, true ) );
 
             if ( getWrappingSdk().getConfiguration().getConsentDialogState() == AppLovinSdkConfiguration.ConsentDialogState.APPLIES )
             {
@@ -191,21 +175,27 @@ public class ByteDanceMediationAdapter
                 builder.coppa( isAgeRestrictedUser ? 1 : 0 );
             }
 
+            if ( AppLovinSdk.VERSION_CODE >= 91100 )
+            {
+                Boolean isDoNotSell = getPrivacySetting( "isDoNotSell", parameters );
+                if ( isDoNotSell != null )
+                {
+                    builder.setCCPA( isDoNotSell ? 1 : 0 );
+                }
+            }
+
             TTAdConfig adConfig = builder.appId( appId )
                     .appName( serverParameters.getString( "app_name", "Default App Name" ) )
                     .debug( parameters.isTesting() )
                     .supportMultiProcess( false )
                     .build();
 
-            // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
-            Context context = ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
-
-            TTAdSdk.init( context, adConfig, new TTAdSdk.InitCallback()
+            TTAdSdk.init( getContext( activity ), adConfig, new TTAdSdk.InitCallback()
             {
                 @Override
                 public void success()
                 {
-                    log( "Pangle SDK initialized" );
+                    log( "SDK initialized" );
 
                     status = InitializationStatus.INITIALIZED_SUCCESS;
                     onCompletionListener.onCompletion( status, null );
@@ -214,7 +204,7 @@ public class ByteDanceMediationAdapter
                 @Override
                 public void fail(int code, String msg)
                 {
-                    log( "Pangle SDK failed to initialize with code: " + code + " and message: " + msg );
+                    log( "SDK failed to initialize with code: " + code + " and message: " + msg );
 
                     status = InitializationStatus.INITIALIZED_FAILURE;
                     onCompletionListener.onCompletion( status, msg );
@@ -223,8 +213,7 @@ public class ByteDanceMediationAdapter
         }
         else
         {
-            log( "Pangle attempted initialization already - marking initialization as completed" );
-
+            log( "attempted initialization already - marking initialization as completed" );
             onCompletionListener.onCompletion( status, null );
         }
     }
@@ -282,6 +271,8 @@ public class ByteDanceMediationAdapter
         String bidResponse = parameters.getBidResponse();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( bidResponse ) ? "bidding " : "" ) + "interstitial ad for code id \"" + codeId + "\"..." );
 
+        updateAdConfig( parameters );
+
         // NOTE: No privacy APIs to toggle before ad load
 
         AdSlot.Builder adSlotBuilder = new AdSlot.Builder()
@@ -296,7 +287,7 @@ public class ByteDanceMediationAdapter
         }
 
         interstitialAdListener = new InterstitialAdListener( codeId, listener );
-        TTAdSdk.getAdManager().createAdNative( activity ).loadFullScreenVideoAd( adSlotBuilder.build(), interstitialAdListener );
+        TTAdSdk.getAdManager().createAdNative( getContext( activity ) ).loadFullScreenVideoAd( adSlotBuilder.build(), interstitialAdListener );
     }
 
     @Override
@@ -320,6 +311,8 @@ public class ByteDanceMediationAdapter
         String bidResponse = parameters.getBidResponse();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( bidResponse ) ? "bidding " : "" ) + "rewarded ad for code id \"" + codeId + "\"..." );
 
+        updateAdConfig( parameters );
+
         // NOTE: No privacy APIs to toggle before ad load
 
         AdSlot.Builder adSlotBuilder = new AdSlot.Builder()
@@ -336,7 +329,7 @@ public class ByteDanceMediationAdapter
         }
 
         rewardedAdListener = new RewardedAdListener( codeId, listener );
-        TTAdSdk.getAdManager().createAdNative( activity ).loadRewardVideoAd( adSlotBuilder.build(), rewardedAdListener );
+        TTAdSdk.getAdManager().createAdNative( getContext( activity ) ).loadRewardVideoAd( adSlotBuilder.build(), rewardedAdListener );
     }
 
     @Override
@@ -364,6 +357,8 @@ public class ByteDanceMediationAdapter
         String codeId = parameters.getThirdPartyAdPlacementId();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( bidResponse ) ? "bidding " : "" ) + ( isNative ? "native " : "" ) + adFormat.getLabel() + " ad for code id \"" + codeId + "\"..." );
 
+        updateAdConfig( parameters );
+
         AppLovinSdkUtils.Size adSize = adFormat.getSize();
         AdSlot.Builder adSlotBuilder = new AdSlot.Builder()
                 .setCodeId( codeId )
@@ -376,7 +371,7 @@ public class ByteDanceMediationAdapter
             adSlotBuilder.withBid( bidResponse );
         }
 
-        TTAdNative adViewAd = TTAdSdk.getAdManager().createAdNative( activity );
+        TTAdNative adViewAd = TTAdSdk.getAdManager().createAdNative( getContext( activity ) );
         if ( isNative )
         {
             NativeAdViewListener nativeListener = new NativeAdViewListener( parameters, adFormat, activity, listener );
@@ -401,6 +396,16 @@ public class ByteDanceMediationAdapter
         String codeId = parameters.getThirdPartyAdPlacementId();
         log( "Loading " + ( isBiddingAd ? "bidding " : "" ) + "native ad for code id \"" + codeId + "\"..." );
 
+        updateAdConfig( parameters );
+
+        // Minimum supported Android SDK version is 11.1.0+, previous version has `MaxNativeAdView` requiring an Activity context which might leak
+        if ( AppLovinSdk.VERSION_CODE < 11010000 )
+        {
+            log( "Failing ad load for AppLovin SDK < 11.1.0 which requires an Activity context" );
+            listener.onNativeAdLoadFailed( MaxAdapterError.UNSPECIFIED );
+            return;
+        }
+
         AdSlot.Builder adSlotBuilder = new AdSlot.Builder()
                 .setCodeId( codeId )
                 .setImageAcceptedSize( 640, 320 )
@@ -412,8 +417,8 @@ public class ByteDanceMediationAdapter
             adSlotBuilder.withBid( bidResponse );
         }
 
-        nativeAdListener = new NativeAdListener( parameters, activity, listener );
-        TTAdSdk.getAdManager().createAdNative( activity ).loadFeedAd( adSlotBuilder.build(), nativeAdListener );
+        nativeAdListener = new NativeAdListener( parameters, getContext( activity ), listener );
+        TTAdSdk.getAdManager().createAdNative( getContext( activity ) ).loadFeedAd( adSlotBuilder.build(), nativeAdListener );
     }
 
     //endregion
@@ -526,6 +531,31 @@ public class ByteDanceMediationAdapter
         }
 
         return new MaxAdapterError( adapterError.getErrorCode(), adapterError.getErrorMessage(), byteDanceErrorCode, byteDanceErrorMessage );
+    }
+
+    private Context getContext(@Nullable Activity activity)
+    {
+        // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
+        return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
+    }
+
+    private String createAdConfigData(Bundle serverParameters, Boolean isInitializing)
+    {
+        if ( isInitializing )
+        {
+            return String.format( "[{\"name\":\"mediation\",\"value\":\"MAX\"},{\"name\":\"adapter_version\",\"value\":\"%s\"}]", getAdapterVersion() );
+        }
+        else
+        {
+            return String.format( "[{\"name\":\"mediation\",\"value\":\"MAX\"},{\"name\":\"adapter_version\",\"value\":\"%s\"},{\"name\":\"hybrid_id\",\"value\":\"%s\"}]", getAdapterVersion(), BundleUtils.getString( "event_id", serverParameters ) );
+        }
+    }
+
+    private void updateAdConfig(final MaxAdapterResponseParameters parameters)
+    {
+        TTAdConfig.Builder builder = new TTAdConfig.Builder();
+        builder.data( createAdConfigData( parameters.getServerParameters(), false ) );
+        TTAdSdk.updateAdConfig( builder.build() );
     }
 
     //endregion
@@ -840,7 +870,9 @@ public class ByteDanceMediationAdapter
                         log( "Adding native ad icon (" + nativeAdViewAd.getIcon().getImageUrl() + ") to queue to be fetched" );
 
                         final String imageUrl = nativeAdViewAd.getIcon().getImageUrl();
-                        iconDrawableFuture = ( AppLovinSdk.VERSION_CODE >= 11000000 ) ? createDrawableFuture( imageUrl, resources ) : executorServiceToUse.submit( createDrawableTask( imageUrl, resources ) );
+                        iconDrawableFuture = ( AppLovinSdk.VERSION_CODE >= 11000000 )
+                                ? createDrawableFuture( imageUrl, resources )
+                                : executorServiceToUse.submit( createDrawableTask( imageUrl, resources ) );
                     }
 
                     // Pangle's media view can be either a video or image (which they don't provide a view for)
@@ -858,7 +890,9 @@ public class ByteDanceMediationAdapter
                             log( "Adding native ad media (" + ttMediaImage.getImageUrl() + ") to queue to be fetched" );
 
                             final String imageUrl = ttMediaImage.getImageUrl();
-                            imageDrawableFuture = ( AppLovinSdk.VERSION_CODE >= 11000000 ) ? createDrawableFuture( imageUrl, resources ) : executorServiceToUse.submit( createDrawableTask( imageUrl, resources ) );
+                            imageDrawableFuture = ( AppLovinSdk.VERSION_CODE >= 11000000 )
+                                    ? createDrawableFuture( imageUrl, resources )
+                                    : executorServiceToUse.submit( createDrawableTask( imageUrl, resources ) );
                         }
                     }
 
@@ -913,6 +947,7 @@ public class ByteDanceMediationAdapter
                                     .setCallToAction( nativeAdViewAd.getButtonText() )
                                     .setIcon( icon )
                                     .setMediaView( mediaView )
+                                    .setOptionsView( nativeAdViewAd.getAdLogoView() )
                                     .build();
 
                             String templateName = BundleUtils.getString( "template", "", serverParameters );
@@ -1045,31 +1080,20 @@ public class ByteDanceMediationAdapter
     {
         final String                     codeId;
         final Bundle                     serverParameters;
-        final WeakReference<Activity>    activityRef;
+        final Context                    context;
         final MaxNativeAdAdapterListener listener;
 
-        NativeAdListener(final MaxAdapterResponseParameters parameters,
-                         final Activity activity,
-                         final MaxNativeAdAdapterListener listener)
+        NativeAdListener(final MaxAdapterResponseParameters parameters, final Context context, final MaxNativeAdAdapterListener listener)
         {
             this.codeId = parameters.getThirdPartyAdPlacementId();
             this.serverParameters = parameters.getServerParameters();
-            this.activityRef = new WeakReference<>( activity );
+            this.context = context;
             this.listener = listener;
         }
 
         @Override
         public void onFeedAdLoad(final List<TTFeedAd> ads)
         {
-            final Activity activity = activityRef.get();
-            if ( activity == null )
-            {
-                log( "Native ad (" + codeId + ") failed to load: activity reference is null when ad is loaded" );
-                listener.onNativeAdLoadFailed( MaxAdapterError.INVALID_LOAD_STATE );
-
-                return;
-            }
-
             if ( ads == null || ads.size() == 0 )
             {
                 log( "Native ad (" + codeId + ") failed to load: no fill" );
@@ -1105,7 +1129,7 @@ public class ByteDanceMediationAdapter
                     {
                         // Pangle's image resource comes in the form of a URL which needs to be fetched in a non-blocking manner
                         log( "Adding native ad icon (" + nativeAd.getIcon().getImageUrl() + ") to queue to be fetched" );
-                        iconDrawableFuture = createDrawableFuture( nativeAd.getIcon().getImageUrl(), activity.getResources() );
+                        iconDrawableFuture = createDrawableFuture( nativeAd.getIcon().getImageUrl(), context.getResources() );
                     }
 
                     // Pangle's media view can be either a video or image (which they don't provide a view for)
@@ -1121,7 +1145,7 @@ public class ByteDanceMediationAdapter
                         {
                             // Pangle's image resource comes in the form of a URL which needs to be fetched in a non-blocking manner
                             log( "Adding native ad media (" + ttMediaImage.getImageUrl() + ") to queue to be fetched" );
-                            imageDrawableFuture = createDrawableFuture( ttMediaImage.getImageUrl(), activity.getResources() );
+                            imageDrawableFuture = createDrawableFuture( ttMediaImage.getImageUrl(), context.getResources() );
                         }
                     }
 
@@ -1162,7 +1186,7 @@ public class ByteDanceMediationAdapter
                             }
                             else if ( finalMediaViewImageDrawable != null )
                             {
-                                mediaView = new ImageView( activity );
+                                mediaView = new ImageView( context );
                                 ( (ImageView) mediaView ).setImageDrawable( finalMediaViewImageDrawable );
                             }
                             else
@@ -1187,7 +1211,8 @@ public class ByteDanceMediationAdapter
                                     .setBody( nativeAd.getDescription() )
                                     .setCallToAction( nativeAd.getButtonText() )
                                     .setIcon( icon )
-                                    .setMediaView( mediaView );
+                                    .setMediaView( mediaView )
+                                    .setOptionsView( nativeAd.getAdLogoView() );
                             MaxNativeAd maxNativeAd = new MaxByteDanceNativeAd( builder );
 
                             log( "Native ad fully loaded: " + codeId );

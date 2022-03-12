@@ -9,7 +9,10 @@ import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.Display;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.ImageView;
+
+import androidx.annotation.NonNull;
 
 import com.applovin.impl.sdk.utils.BundleUtils;
 import com.applovin.mediation.MaxAdFormat;
@@ -76,8 +79,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import androidx.annotation.NonNull;
 
 /**
  * This is a mediation adapterWrapper for Google Play Services
@@ -165,7 +166,7 @@ public class GoogleMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-        return "20.5.0.8";
+        return "20.6.0.3";
     }
 
     @Override
@@ -224,7 +225,7 @@ public class GoogleMediationAdapter
         // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
         Context contextToUse = ( activity != null ) ? activity : getApplicationContext();
 
-        AdRequest adRequest = createAdRequestWithParameters( true, parameters, contextToUse );
+        AdRequest adRequest = createAdRequestWithParameters( true, parameters.getAdFormat(), parameters, contextToUse );
 
         QueryInfo.generate( contextToUse, toAdFormat( parameters ), adRequest, new QueryInfoGenerationCallback()
         {
@@ -257,7 +258,7 @@ public class GoogleMediationAdapter
 
         updateMuteState( parameters );
         setRequestConfiguration( parameters );
-        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, parameters, activity );
+        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, MaxAdFormat.INTERSTITIAL, parameters, activity );
 
         InterstitialAd.load( activity, placementId, adRequest, new InterstitialAdLoadCallback()
         {
@@ -337,7 +338,7 @@ public class GoogleMediationAdapter
 
         updateMuteState( parameters );
         setRequestConfiguration( parameters );
-        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, parameters, activity );
+        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, MaxAdFormat.REWARDED_INTERSTITIAL, parameters, activity );
 
         RewardedInterstitialAd.load( activity, placementId, adRequest, new RewardedInterstitialAdLoadCallback()
         {
@@ -414,7 +415,7 @@ public class GoogleMediationAdapter
 
         updateMuteState( parameters );
         setRequestConfiguration( parameters );
-        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, parameters, activity );
+        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, MaxAdFormat.REWARDED, parameters, activity );
 
         RewardedAd.load( activity, placementId, adRequest, new RewardedAdLoadCallback()
         {
@@ -492,12 +493,12 @@ public class GoogleMediationAdapter
         log( "Loading " + ( isBiddingAd ? "bidding " : "" ) + ( isNative ? "native " : "" ) + adFormat.getLabel() + " ad for placement id: " + placementId + "..." );
 
         setRequestConfiguration( parameters );
-        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, parameters, activity );
+        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, adFormat, parameters, activity );
 
         if ( isNative )
         {
             NativeAdOptions.Builder nativeAdOptionsBuilder = new NativeAdOptions.Builder();
-            nativeAdOptionsBuilder.setAdChoicesPlacement( getAdChoicesPlacement( parameters.getLocalExtraParameters() ) );
+            nativeAdOptionsBuilder.setAdChoicesPlacement( getAdChoicesPlacement( parameters ) );
             nativeAdOptionsBuilder.setRequestMultipleImages( adFormat == MaxAdFormat.MREC ); // MRECs can handle multiple images via AdMob's media view
 
             NativeAdViewListener nativeAdViewListener = new NativeAdViewListener( parameters, adFormat, activity, listener );
@@ -513,7 +514,10 @@ public class GoogleMediationAdapter
         {
             adView = new AdView( activity );
             adView.setAdUnitId( placementId );
-            adView.setAdSize( toAdSize( adFormat, parameters.getServerParameters(), activity ) );
+
+            // Check if adaptive banner sizes should be used
+            boolean isAdaptiveBanner = parameters.getServerParameters().getBoolean( "adaptive_banner", false );
+            adView.setAdSize( toAdSize( adFormat, isAdaptiveBanner, activity ) );
             adView.setAdListener( new AdViewListener( placementId, adFormat, listener ) );
 
             adView.loadAd( adRequest );
@@ -533,10 +537,10 @@ public class GoogleMediationAdapter
         log( "Loading " + ( isBiddingAd ? "bidding " : "" ) + " native ad for placement id: " + placementId + "..." );
 
         setRequestConfiguration( parameters );
-        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, parameters, activity );
+        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, MaxAdFormat.NATIVE, parameters, activity );
 
         NativeAdOptions.Builder nativeAdOptionsBuilder = new NativeAdOptions.Builder();
-        nativeAdOptionsBuilder.setAdChoicesPlacement( getAdChoicesPlacement( parameters.getLocalExtraParameters() ) );
+        nativeAdOptionsBuilder.setAdChoicesPlacement( getAdChoicesPlacement( parameters ) );
 
         // Medium templates can handle multiple images via AdMob's media view
         String template = BundleUtils.getString( "template", "", parameters.getServerParameters() );
@@ -584,19 +588,19 @@ public class GoogleMediationAdapter
         return new MaxAdapterError( adapterError.getErrorCode(), adapterError.getErrorMessage(), googleErrorCode, googleAdsError.getMessage() );
     }
 
-    private AdSize toAdSize(final MaxAdFormat adFormat, final Bundle serverParameters, final Activity activity)
+    private AdSize toAdSize(final MaxAdFormat adFormat, boolean isAdaptiveBanner, final Context context)
     {
         if ( adFormat == MaxAdFormat.BANNER || adFormat == MaxAdFormat.LEADER )
         {
-            // Check if adaptive banner sizes should be used
-            if ( serverParameters.getBoolean( "adaptive_banner", false ) )
+            if ( isAdaptiveBanner )
             {
-                Display display = activity.getWindowManager().getDefaultDisplay();
+                WindowManager windowManager = (WindowManager) context.getSystemService( Context.WINDOW_SERVICE );
+                Display display = windowManager.getDefaultDisplay();
                 DisplayMetrics outMetrics = new DisplayMetrics();
                 display.getMetrics( outMetrics );
-                int screenWidthDp = AppLovinSdkUtils.pxToDp( activity, outMetrics.widthPixels );
+                int screenWidthDp = AppLovinSdkUtils.pxToDp( context, outMetrics.widthPixels );
 
-                return AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize( activity, screenWidthDp );
+                return AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize( context, screenWidthDp );
             }
             else
             {
@@ -665,15 +669,27 @@ public class GoogleMediationAdapter
         MobileAds.setRequestConfiguration( requestConfigurationBuilder.build() );
     }
 
-    private AdRequest createAdRequestWithParameters(final boolean isBiddingAd, final MaxAdapterParameters parameters, final Context context)
+    private AdRequest createAdRequestWithParameters(final boolean isBiddingAd, final MaxAdFormat adFormat, final MaxAdapterParameters parameters, final Context context)
     {
         AdRequest.Builder requestBuilder = new AdRequest.Builder();
-        Bundle networkExtras = new Bundle( 4 );
+        Bundle networkExtras = new Bundle( 6 );
 
+        Bundle serverParameters = parameters.getServerParameters();
         if ( isBiddingAd )
         {
             // MAX specific
             networkExtras.putString( "query_info_type", "requester_type_2" );
+
+            if ( AppLovinSdk.VERSION_CODE >= 11_00_00_00 && adFormat.isAdViewAd() )
+            {
+                Object isAdaptiveBanner = parameters.getLocalExtraParameters().get( "adaptive_banner" );
+                if ( isAdaptiveBanner instanceof String && "true".equalsIgnoreCase( (String) isAdaptiveBanner ) )
+                {
+                    AdSize adaptiveAdSize = toAdSize( adFormat, true, context );
+                    networkExtras.putInt( "adaptive_banner_w", adaptiveAdSize.getWidth() );
+                    networkExtras.putInt( "adaptive_banner_h", adaptiveAdSize.getHeight() );
+                }
+            }
 
             if ( parameters instanceof MaxAdapterResponseParameters )
             {
@@ -685,7 +701,6 @@ public class GoogleMediationAdapter
             }
         }
 
-        Bundle serverParameters = parameters.getServerParameters();
         if ( serverParameters.getBoolean( "set_mediation_identifier", true ) )
         {
             // MAX specific
@@ -761,11 +776,19 @@ public class GoogleMediationAdapter
         return nativeAd.getHeadline() != null;
     }
 
-    private int getAdChoicesPlacement(Map<String, Object> localExtraParams)
+    private int getAdChoicesPlacement(MaxAdapterResponseParameters parameters)
     {
         // Publishers can set via nativeAdLoader.setLocalExtraParameter( "admob_ad_choices_placement", ADCHOICES_BOTTOM_LEFT );
-        final Object adChoicesPlacementObj = localExtraParams.get( "admob_ad_choices_placement" );
-        return isValidAdChoicesPlacement( adChoicesPlacementObj ) ? (Integer) adChoicesPlacementObj : NativeAdOptions.ADCHOICES_TOP_RIGHT;
+        // Note: This feature requires AppLovin v11.0.0+
+        if ( AppLovinSdk.VERSION_CODE >= 11_00_00_00 )
+        {
+            final Map<String, Object> localExtraParams = parameters.getLocalExtraParameters();
+            final Object adChoicesPlacementObj = localExtraParams != null ? localExtraParams.get( "admob_ad_choices_placement" ) : null;
+
+            return isValidAdChoicesPlacement( adChoicesPlacementObj ) ? (Integer) adChoicesPlacementObj : NativeAdOptions.ADCHOICES_TOP_RIGHT;
+        }
+
+        return NativeAdOptions.ADCHOICES_TOP_RIGHT;
     }
 
     private boolean isValidAdChoicesPlacement(Object placementObj)
@@ -950,24 +973,34 @@ public class GoogleMediationAdapter
         {
             log( adFormat.getLabel() + " ad loaded: " + placementId );
 
-            ResponseInfo responseInfo = adView.getResponseInfo();
-            String responseId = ( responseInfo != null ) ? responseInfo.getResponseId() : null;
-
-
-			// astar
-			Map<String, Object> networkInfo = new HashMap<>();
-			if (responseId != null) {
-				networkInfo.put("responseId", responseId);
-			}
-
-			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
-			adTracker.adDidLoadForNetwork("admob", "max", "banner", networkInfo);
-
-
-            if ( AppLovinSdk.VERSION_CODE >= 9150000 && AppLovinSdkUtils.isValidString( responseId ) )
+            if ( AppLovinSdk.VERSION_CODE >= 9150000 )
             {
-                Bundle extraInfo = new Bundle( 1 );
-                extraInfo.putString( "creative_id", responseId );
+                Bundle extraInfo = new Bundle( 3 );
+
+                ResponseInfo responseInfo = adView.getResponseInfo();
+                String responseId = ( responseInfo != null ) ? responseInfo.getResponseId() : null;
+
+				// astar
+				Map<String, Object> networkInfo = new HashMap<>();
+				if (responseId != null) {
+					networkInfo.put("responseId", responseId);
+				}
+
+				AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
+				adTracker.adDidLoadForNetwork("admob", "max", "banner", networkInfo);
+
+
+                if ( AppLovinSdkUtils.isValidString( responseId ) )
+                {
+                    extraInfo.putString( "creative_id", responseId );
+                }
+
+                AdSize adSize = adView.getAdSize();
+                if ( adSize != null )
+                {
+                    extraInfo.putInt( "ad_width", adSize.getWidth() );
+                    extraInfo.putInt( "ad_height", adSize.getHeight() );
+                }
 
                 listener.onAdViewAdLoaded( adView, extraInfo );
             }

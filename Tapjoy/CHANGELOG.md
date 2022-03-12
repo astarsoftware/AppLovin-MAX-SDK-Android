@@ -1,5 +1,11 @@
 # Changelog
 
+## 12.9.1.0
+* Certified with Tapjoy SDK 12.9.1.
+
+## 12.9.0.3
+* Add support for IAB's CCPA Privacy String.
+
 ## 12.9.0.2
 * Support for null `Activity` on init.
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.14.0.7
+* Remove support for `consent_string`.
+
+## 1.14.0.6
+* Add support for IAB's CCPA Privacy String.
+
+## 1.14.0.5
+* Fix native ad support.
+
 ## 1.14.0.4
 * Support for null `Activity` on init.
 

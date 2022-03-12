@@ -1,5 +1,12 @@
 # Changelog
 
+## 6.0.1.4
+* Add support for GDPR.
+
+## 6.0.1.3
+* Remove `https://hyprmx.jfrog.io/artifactory/hyprmx` from repositories in Unity.
+* Fix for getting HyperMX SDK version.
+
 ## 6.0.1.2
 * Support for null `Activity` on init.
 

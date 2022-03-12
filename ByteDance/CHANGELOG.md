@@ -1,5 +1,36 @@
 # Changelog
 
+## 4.3.0.4.0
+* Certified with ByteDance SDK 4.3.0.4.
+
+## 4.2.5.3.0
+* Certified with ByteDance SDK 4.2.5.3.
+
+## 4.2.5.2.6
+* Update to ingest `event_id` during ad load.
+
+## 4.2.5.2.5
+* Update adapters to ingest `event_id`.
+
+## 4.2.5.2.4
+* Fix `TTNativeAd.getAdLogoView()` NPE for banner native ads introduced in v4.2.5.2.2.
+
+## 4.2.5.2.3
+* Fix memory leaks related to adapter passing in `Activity` contexts into ByteDance SDK which uses strong references.
+* Minimum native ads SDK version will be 11.1.0+.
+
+## 4.2.5.2.2
+* Add privacy icon (ad logo view) for native ads.
+
+## 4.2.5.2.1
+* Add support for Binary CCPA.
+
+## 4.2.5.2.0
+* Certified with ByteDance SDK 4.2.5.2.
+
+## 4.2.5.1.0
+* Certified with ByteDance SDK 4.2.5.1.
+
 ## 4.1.1.9.3
 * Support for null `Activity` on init.
 

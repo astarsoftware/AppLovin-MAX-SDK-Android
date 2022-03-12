@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.10.5.0
+* Certified with Vungle SDK 6.10.5.
+
+## 6.10.4.0
+* Certified with Vungle SDK 6.10.4.
+
 ## 6.10.3.1
 * Support for null `Activity` on init.
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## 20.6.0.3
+* Fix version check minimum for local extra parameter API usage.
+
+## 20.6.0.2
+* Add adaptive banner size info for bidding ad requests.
+
+## 20.6.0.1
+* Fix AdChoices `getLocalExtraParameters()` crash. Publishers can set a custom placement on AppLovin SDKs 11.0.0+ and the placement is defaulted to the top right corner otherwise.
+
+## 20.6.0.0
+* Certified with Google SDK 20.6.0.
+
+## 20.5.0.9
+* Add support for sending ad size information for adview ads. This value can be retrieved in the `onAdLoaded()` callback using `getSize()` from `MaxAd.java` available in MAX SDK v11.2.0.
+
 ## 20.5.0.8
 * Support for null `Activity` on init.
 

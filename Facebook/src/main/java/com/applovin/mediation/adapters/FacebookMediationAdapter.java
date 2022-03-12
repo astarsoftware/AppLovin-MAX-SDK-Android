@@ -1080,7 +1080,7 @@ public class FacebookMediationAdapter
             }
 
             String templateName = BundleUtils.getString( "template", "", serverParameters );
-            boolean isTemplateAd = AppLovinSdkUtils.isValidString( templateName );
+            final boolean isTemplateAd = AppLovinSdkUtils.isValidString( templateName );
             if ( !hasRequiredAssets( isTemplateAd, nativeAd ) )
             {
                 e( "Native ad (" + nativeAd + ") does not have required assets." );
@@ -1184,6 +1184,7 @@ public class FacebookMediationAdapter
                     .setAdvertiser( nativeAd.getAdvertiserName() )
                     .setBody( nativeAd.getAdBodyText() )
                     .setCallToAction( nativeAd.getAdCallToAction() )
+                    .setIcon( new MaxNativeAd.MaxNativeAdImage( iconDrawable ) )
                     .setOptionsView( new AdOptionsView( activity, nativeAd, null ) );
 
             if ( nativeAd instanceof NativeBannerAd )
@@ -1195,8 +1196,7 @@ public class FacebookMediationAdapter
             }
             else
             {
-                builder.setIcon( new MaxNativeAd.MaxNativeAdImage( iconDrawable ) )
-                        .setMediaView( mediaView );
+                builder.setMediaView( mediaView );
             }
 
             final MaxFacebookNativeAd maxNativeAd = new MaxFacebookNativeAd( builder );
@@ -1269,7 +1269,18 @@ public class FacebookMediationAdapter
                 {
                     if ( nativeAd instanceof NativeBannerAd )
                     {
-                        ( (NativeBannerAd) nativeAd ).registerViewForInteraction( maxNativeAdView, (ImageView) getMediaView(), clickableViews );
+                        if ( maxNativeAdView.getIconImageView() != null )
+                        {
+                            ( (NativeBannerAd) nativeAd ).registerViewForInteraction( maxNativeAdView, maxNativeAdView.getIconImageView(), clickableViews );
+                        }
+                        else if ( getMediaView() != null )
+                        {
+                            ( (NativeBannerAd) nativeAd ).registerViewForInteraction( maxNativeAdView, (ImageView) getMediaView(), clickableViews );
+                        }
+                        else
+                        {
+                            e( "Failed to register native ad view for interaction: icon image view and media view are null" );
+                        }
                     }
                     else
                     {

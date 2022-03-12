@@ -15,7 +15,7 @@ import com.applovin.mediation.nativeAds.MaxNativeAdListener
 import com.applovin.mediation.nativeAds.MaxNativeAdLoader
 import com.applovin.mediation.nativeAds.MaxNativeAdView
 
-class TemplateNativeAdActivity : BaseAdActivity(), MaxAdRevenueListener {
+class TemplateNativeAdActivity : BaseAdActivity() {
     private lateinit var nativeAdLoader: MaxNativeAdLoader
     private var nativeAd: MaxAd? = null
 
@@ -24,13 +24,25 @@ class TemplateNativeAdActivity : BaseAdActivity(), MaxAdRevenueListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_native_template)
-        setTitle(R.string.activity_template_natives)
+        setTitle(R.string.activity_template_native_ad)
 
         nativeAdLayout = findViewById(R.id.native_ad_layout)
         setupCallbacksRecyclerView()
 
         nativeAdLoader = MaxNativeAdLoader("YOUR_AD_UNIT_ID", this)
-        nativeAdLoader.setRevenueListener(this)
+        nativeAdLoader.setRevenueListener(object : MaxAdRevenueListener {
+            override fun onAdRevenuePaid(ad: MaxAd?) {
+                logCallback()
+
+                val adjustAdRevenue = AdjustAdRevenue(AdjustConfig.AD_REVENUE_APPLOVIN_MAX)
+                adjustAdRevenue.setRevenue(ad?.revenue, "USD")
+                adjustAdRevenue.setAdRevenueNetwork(ad?.networkName)
+                adjustAdRevenue.setAdRevenueUnit(ad?.adUnitId)
+                adjustAdRevenue.setAdRevenuePlacement(ad?.placement)
+
+                Adjust.trackAdRevenue(adjustAdRevenue)
+            }
+        })
         nativeAdLoader.setNativeAdListener(object : MaxNativeAdListener() {
             override fun onNativeAdLoaded(nativeAdView: MaxNativeAdView, ad: MaxAd) {
                 logAnonymousCallback()
@@ -64,26 +76,14 @@ class TemplateNativeAdActivity : BaseAdActivity(), MaxAdRevenueListener {
             // Call destroy on the native ad from any native ad loader.
             nativeAdLoader.destroy(nativeAd)
         }
+
+        // Destroy the actual loader itself
+        nativeAdLoader.destroy()
+
         super.onDestroy()
     }
 
     fun showAd(view: View) {
         nativeAdLoader.loadAd()
     }
-
-    //region MAX Ad Revenue Listener
-
-    override fun onAdRevenuePaid(ad: MaxAd?) {
-        logCallback()
-
-        val adjustAdRevenue = AdjustAdRevenue(AdjustConfig.AD_REVENUE_APPLOVIN_MAX)
-        adjustAdRevenue.setRevenue(ad?.revenue, "USD")
-        adjustAdRevenue.setAdRevenueNetwork(ad?.networkName)
-        adjustAdRevenue.setAdRevenueUnit(ad?.adUnitId)
-        adjustAdRevenue.setAdRevenuePlacement(ad?.placement)
-
-        Adjust.trackAdRevenue(adjustAdRevenue)
-    }
-
-    //endregion
 }
