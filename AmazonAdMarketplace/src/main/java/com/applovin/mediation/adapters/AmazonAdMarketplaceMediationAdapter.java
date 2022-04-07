@@ -12,7 +12,6 @@ import com.amazon.device.ads.DTBAdInterstitial;
 import com.amazon.device.ads.DTBAdInterstitialListener;
 import com.amazon.device.ads.DTBAdLoader;
 import com.amazon.device.ads.DTBAdResponse;
-import com.amazon.device.ads.DTBAdSize;
 import com.amazon.device.ads.DTBAdView;
 import com.amazon.device.ads.SDKUtilities;
 import com.applovin.mediation.MaxAdFormat;
@@ -28,10 +27,6 @@ import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkUtils;
-import com.astarsoftware.android.ads.AdManagementUtil;
-import com.astarsoftware.android.ads.AdNetworkTracker;
-import com.astarsoftware.android.ads.R;
-import com.astarsoftware.dependencies.DependencyInjector;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -354,19 +349,7 @@ public class AmazonAdMarketplaceMediationAdapter
         public void onAdLoaded(final View view)
         {
             d( "AdView ad loaded" );
-
-
-            // astar
-			Map<String, Object> networkInfo = new HashMap<>();
-//			if (responseId != null) {
-//				networkInfo.put("responseId", responseId);
-//			}
-
-			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
-			adTracker.adDidLoadForNetwork("admob", "max", "banner", networkInfo);
-
-
-			listener.onAdViewAdLoaded( view );
+            listener.onAdViewAdLoaded( view );
         }
 
         @Override
@@ -425,16 +408,6 @@ public class AmazonAdMarketplaceMediationAdapter
         public void onAdLoaded(final View view)
         {
             d( "Interstitial loaded" );
-
-			// astar
-			Map<String, Object> networkInfo = new HashMap<>();
-//			if (responseId != null) {
-//				networkInfo.put("responseId", responseId);
-//			}
-
-			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
-			adTracker.adDidLoadForNetwork("amazon", "max", "interstitial", networkInfo);
-
             listener.onInterstitialAdLoaded();
         }
 
