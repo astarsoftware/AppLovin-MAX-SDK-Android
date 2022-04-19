@@ -27,6 +27,10 @@ import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkUtils;
+import com.astarsoftware.android.ads.AdManagementUtil;
+import com.astarsoftware.android.ads.AdNetworkTracker;
+import com.astarsoftware.android.ads.R;
+import com.astarsoftware.dependencies.DependencyInjector;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -60,6 +64,9 @@ public class AmazonAdMarketplaceMediationAdapter
 
     private DTBAdView         adView;
     private DTBAdInterstitial interstitialAd;
+
+    private MediationHints bannerHints = null;
+    private MediationHints interstitialHints = null;
 
     // Explicit default constructor declaration
     public AmazonAdMarketplaceMediationAdapter(final AppLovinSdk sdk) { super( sdk ); }
@@ -240,6 +247,7 @@ public class AmazonAdMarketplaceMediationAdapter
         }
         else
         {
+			this.bannerHints = null;
             failSignalCollection( "Received empty bid id", callback );
         }
     }
@@ -279,11 +287,13 @@ public class AmazonAdMarketplaceMediationAdapter
         {
             adView = new DTBAdView( activity, new AdViewListener( listener ) );
             adView.fetchAd( mediationHints.value );
+            this.bannerHints = mediationHints;
         }
         else
         {
             e( "Unable to find mediation hints" );
             listener.onAdViewAdLoadFailed( MaxAdapterError.INVALID_LOAD_STATE );
+            this.bannerHints = null;
         }
     }
 
@@ -349,10 +359,45 @@ public class AmazonAdMarketplaceMediationAdapter
         public void onAdLoaded(final View view)
         {
             d( "AdView ad loaded" );
-            listener.onAdViewAdLoaded( view );
+
+
+            // astar
+			Map<String, Object> networkInfo = new HashMap<>();
+			MediationHints hints = AmazonAdMarketplaceMediationAdapter.this.bannerHints;
+			if(hints != null) {
+				try {
+					String adHtml = (String) hints.value;
+					networkInfo = getNetworkInfoFromHtml(adHtml);
+				} catch (Throwable t) {
+					log("Error parsing ad html",t);
+				}
+			}
+
+
+			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
+			adTracker.adDidLoadForNetwork("amazon", "max", "banner", networkInfo);
+
+
+			listener.onAdViewAdLoaded( view );
         }
 
-        @Override
+		public Map<String, Object> getNetworkInfoFromHtml(String html) {
+			Map<String, Object> networkInfo = new HashMap<>();
+
+			String jsCall = html.split("<script[^>]*>")[1].replace("</script></div>","");
+			String paramString = jsCall.replace(");","").replace(" ","").replace("amzn.dtb.loadAd(\"","");
+			String[] params = paramString.split("\",\"");
+			String domain = params[2].split(",")[0].replace("\"","");
+			networkInfo.put("bidCacheId",params[1]);
+			networkInfo.put("encodedBidCacheId",params[0]);
+			networkInfo.put("domain",domain);
+			networkInfo.put("jsCall",jsCall);
+
+			return networkInfo;
+		}
+
+
+		@Override
         public void onAdFailed(final View view)
         {
             e( "AdView failed to load" );
@@ -408,6 +453,16 @@ public class AmazonAdMarketplaceMediationAdapter
         public void onAdLoaded(final View view)
         {
             d( "Interstitial loaded" );
+
+			// astar
+			Map<String, Object> networkInfo = new HashMap<>();
+//			if (responseId != null) {
+//				networkInfo.put("responseId", responseId);
+//			}
+
+			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
+			adTracker.adDidLoadForNetwork("amazon", "max", "interstitial", networkInfo);
+
             listener.onInterstitialAdLoaded();
         }
 
