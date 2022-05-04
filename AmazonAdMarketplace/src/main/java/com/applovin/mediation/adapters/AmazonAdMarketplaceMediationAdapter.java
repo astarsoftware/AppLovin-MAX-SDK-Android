@@ -456,15 +456,37 @@ public class AmazonAdMarketplaceMediationAdapter
 
 			// astar
 			Map<String, Object> networkInfo = new HashMap<>();
-//			if (responseId != null) {
-//				networkInfo.put("responseId", responseId);
-//			}
+			MediationHints hints = AmazonAdMarketplaceMediationAdapter.this.interstitialHints;
+			if(hints != null) {
+				try {
+					String adHtml = (String) hints.value;
+					networkInfo = getNetworkInfoFromHtml(adHtml);
+				} catch (Throwable t) {
+					log("Error parsing ad html",t);
+				}
+			}
 
 			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
 			adTracker.adDidLoadForNetwork("amazon", "max", "interstitial", networkInfo);
 
+
             listener.onInterstitialAdLoaded();
         }
+
+		public Map<String, Object> getNetworkInfoFromHtml(String html) {
+			Map<String, Object> networkInfo = new HashMap<>();
+
+			String jsCall = html.split("<script[^>]*>")[1].replace("</script></div>","");
+			String paramString = jsCall.replace(");","").replace(" ","").replace("amzn.dtb.loadAd(\"","");
+			String[] params = paramString.split("\",\"");
+			String domain = params[2].split(",")[0].replace("\"","");
+			networkInfo.put("bidCacheId",params[1]);
+			networkInfo.put("encodedBidCacheId",params[0]);
+			networkInfo.put("domain",domain);
+			networkInfo.put("jsCall",jsCall);
+
+			return networkInfo;
+		}
 
         @Override
         public void onAdFailed(final View view)
