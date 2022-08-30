@@ -64,6 +64,13 @@ public class VungleMediationAdapter
 
             status = InitializationStatus.INITIALIZING;
 
+            // NOTE: Vungle's SDK will log error if setting COPPA state after it initializes
+            Boolean isAgeRestrictedUser = getPrivacySetting( "isAgeRestrictedUser", parameters );
+            if ( isAgeRestrictedUser != null )
+            {
+                Vungle.updateUserCoppaStatus( isAgeRestrictedUser );
+            }
+
             Plugin.addWrapperInfo( VungleApiClient.WrapperFramework.max, getAdapterVersion() );
 
             VungleSettings settings = new VungleSettings.Builder().disableBannerRefresh().build();
@@ -135,6 +142,8 @@ public class VungleMediationAdapter
     public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
     {
         log( "Collecting signal..." );
+
+        updateUserPrivacySettings( parameters );
 
         String signal = Vungle.getAvailableBidTokens( activity.getApplicationContext() );
         callback.onSignalCollected( signal );
@@ -229,7 +238,7 @@ public class VungleMediationAdapter
         }
 
         log( "Interstitial ad not ready" );
-        listener.onInterstitialAdDisplayFailed( MaxAdapterError.AD_NOT_READY );
+        listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
     }
 
     //endregion
@@ -325,7 +334,7 @@ public class VungleMediationAdapter
         }
 
         log( "Rewarded ad not ready" );
-        listener.onRewardedAdDisplayFailed( MaxAdapterError.AD_NOT_READY );
+        listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
     }
 
     //endregion

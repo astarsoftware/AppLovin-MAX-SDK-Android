@@ -1,5 +1,26 @@
 # Changelog
 
+## 6.0.3.0
+* Certified with HyprMX SDK 6.0.3.
+
+## 6.0.2.2
+* Add support to set `hasUserConsent` and `ageRestrictedUser` on initialization.
+
+## 6.0.2.1
+* Update ad display failed error code.
+
+## 6.0.2.0
+* Certified with HyprMX SDK 6.0.2.
+
+## 6.0.1.7
+* Set GDPR consent status regardless of users' region.
+
+## 6.0.1.6
+* Fix `null` context when creating `HyprMXBannerView`.
+
+## 6.0.1.5
+* Remove setting GDPR consent status to `CONSENT_STATUS_UNKNOWN`.
+
 ## 6.0.1.4
 * Add support for GDPR.
 

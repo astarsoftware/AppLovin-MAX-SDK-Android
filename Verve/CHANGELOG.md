@@ -1,5 +1,34 @@
 # Changelog
 
+## 2.15.1.0
+* Certified with Verve SDK 2.15.1.
+
+## 2.15.0.0
+* Certified with Verve SDK 2.15.0.
+* Update consent status before collecting signal.
+* Add support for passing local parameter "is_location_collection_enabled" to set `HyBid.setLocationUpdatesEnabled()`.
+
+## 2.14.0.0
+* Certified with Verve SDK 2.14.0.
+
+## 2.13.1.1
+* Call `adViewAd.setTrackingMethod( ImpressionTrackingMethod.AD_VIEWABLE );` on `HyBidAdView` banners/MRECs.
+
+## 2.13.1.0
+* Certified with Verve SDK 2.13.1.
+
+## 2.13.0.0
+* Certified with Verve SDK 2.13.0.
+
+## 2.12.1.1
+* Update ad display failed error code.
+
+## 2.12.1.0
+* Certified with Verve SDK 2.12.1.
+
+## 2.11.1.3
+* Add check for SDK initialization before loading an ad.
+
 ## 2.11.1.2
 * Add support for location updates.
 

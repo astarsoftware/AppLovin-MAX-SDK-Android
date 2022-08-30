@@ -97,6 +97,8 @@ public class AdColonyMediationAdapter
     {
         log( "Collecting signal for " + parameters.getAdFormat() + " ad..." );
 
+        AdColony.setAppOptions( getOptions( parameters ) );
+
         AdColony.collectSignals( new AdColonySignalsListener()
         {
             @Override
@@ -167,7 +169,7 @@ public class AdColonyMediationAdapter
         if ( loadedInterstitialAd == null )
         {
             log( "Interstitial ad not ready" );
-            listener.onInterstitialAdDisplayFailed( MaxAdapterError.UNSPECIFIED );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
 
             return;
         }
@@ -186,7 +188,7 @@ public class AdColonyMediationAdapter
         if ( !success )
         {
             log( "Interstitial ad failed to display" );
-            listener.onInterstitialAdDisplayFailed( MaxAdapterError.UNSPECIFIED );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
 
@@ -220,7 +222,7 @@ public class AdColonyMediationAdapter
         if ( loadedRewardedAd == null )
         {
             log( "Rewarded ad not ready" );
-            listener.onRewardedAdDisplayFailed( MaxAdapterError.UNSPECIFIED );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
 
             return;
         }
@@ -242,7 +244,7 @@ public class AdColonyMediationAdapter
         if ( !success )
         {
             log( "Rewarded ad failed to display" );
-            listener.onRewardedAdDisplayFailed( MaxAdapterError.UNSPECIFIED );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
 
@@ -616,17 +618,27 @@ public class AdColonyMediationAdapter
             listener.onAdViewAdLoaded( loadedAdViewAd );
         }
 
+        @Override
+        public void onShow(final AdColonyAdView ad)
+        {
+            log( adFormat.getLabel() + " ad shown" );
+            listener.onAdViewAdDisplayed();
+        }
+
+        @Override
         public void onLeftApplication(final AdColonyAdView ad)
         {
             log( adFormat.getLabel() + " ad left application" );
         }
 
+        @Override
         public void onClicked(final AdColonyAdView ad)
         {
             log( adFormat.getLabel() + " ad clicked" );
             listener.onAdViewAdClicked();
         }
 
+        @Override
         public void onRequestNotFilled(final AdColonyZone zone)
         {
             log( adFormat.getLabel() + " ad failed to fill for zone: " + zone.getZoneID() );

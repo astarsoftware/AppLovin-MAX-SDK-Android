@@ -75,11 +75,7 @@ public class InneractiveMediationAdapter
             log( "Initializing Inneractive SDK with app id: " + appId + "..." );
 
             InneractiveAdManager.setUserId( getWrappingSdk().getUserIdentifier() );
-
-            // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
-            Context context = ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
-
-            InneractiveAdManager.initialize( context, appId, new OnFyberMarketplaceInitializedListener()
+            InneractiveAdManager.initialize( getContext( activity ), appId, new OnFyberMarketplaceInitializedListener()
             {
                 @Override
                 public void onFyberMarketplaceInitialized(final FyberInitStatus fyberInitStatus)
@@ -151,6 +147,8 @@ public class InneractiveMediationAdapter
     {
         log( "Collecting signal..." );
 
+        updateUserInfo( parameters );
+
         String signal = BidTokenProvider.getBidderToken();
         if ( signal != null )
         {
@@ -216,7 +214,7 @@ public class InneractiveMediationAdapter
             @Override
             public void onAdEnteredErrorState(final InneractiveAdSpot inneractiveAdSpot, final InneractiveUnitController.AdDisplayError adDisplayError)
             {
-                MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.UNSPECIFIED.getErrorCode(), MaxAdapterError.UNSPECIFIED.getErrorMessage(), 0, adDisplayError.toString() );
+                MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", 0, adDisplayError.toString() );
                 log( "Interstitial failed to show: " + adapterError );
 
                 listener.onInterstitialAdDisplayFailed( adapterError );
@@ -276,7 +274,7 @@ public class InneractiveMediationAdapter
         else
         {
             log( "Interstitial ad not ready" );
-            listener.onInterstitialAdDisplayFailed( MaxAdapterError.AD_NOT_READY );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
 
@@ -310,7 +308,7 @@ public class InneractiveMediationAdapter
             public void onPlayerError()
             {
                 log( "Rewarded video failed to display for unspecified error" );
-                listener.onRewardedAdDisplayFailed( MaxAdapterError.UNSPECIFIED );
+                listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
             }
         } );
 
@@ -368,7 +366,7 @@ public class InneractiveMediationAdapter
             @Override
             public void onAdEnteredErrorState(final InneractiveAdSpot inneractiveAdSpot, final InneractiveUnitController.AdDisplayError adDisplayError)
             {
-                MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.UNSPECIFIED.getErrorCode(), MaxAdapterError.UNSPECIFIED.getErrorMessage(), 0, adDisplayError.toString() );
+                MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", 0, adDisplayError.toString() );
                 log( "Rewarded ad failed to show: " + adapterError );
 
                 listener.onRewardedAdDisplayFailed( adapterError );
@@ -441,7 +439,7 @@ public class InneractiveMediationAdapter
         else
         {
             log( "Rewarded ad not ready" );
-            listener.onRewardedAdDisplayFailed( MaxAdapterError.AD_NOT_READY );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
 
@@ -502,7 +500,7 @@ public class InneractiveMediationAdapter
             @Override
             public void onAdEnteredErrorState(final InneractiveAdSpot inneractiveAdSpot, final InneractiveUnitController.AdDisplayError adDisplayError)
             {
-                MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.UNSPECIFIED.getErrorCode(), MaxAdapterError.UNSPECIFIED.getErrorMessage(), 0, adDisplayError.toString() );
+                MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", 0, adDisplayError.toString() );
                 log( "AdView failed to show: " + adapterError );
 
                 listener.onAdViewAdDisplayFailed( adapterError );
@@ -518,7 +516,7 @@ public class InneractiveMediationAdapter
             public void onAdWillOpenExternalApp(final InneractiveAdSpot inneractiveAdSpot) {}
         } );
 
-        adViewGroup = new RelativeLayout( activity );
+        adViewGroup = new RelativeLayout( getContext( activity ) );
 
         adViewSpot = InneractiveAdSpotManager.get().createSpot();
         adViewSpot.addUnitController( controller );
@@ -561,7 +559,7 @@ public class InneractiveMediationAdapter
         }
     }
 
-    private void updateUserInfo(final MaxAdapterResponseParameters parameters)
+    private void updateUserInfo(final MaxAdapterParameters parameters)
     {
         InneractiveAdManager.setUserId( getWrappingSdk().getUserIdentifier() );
 
@@ -576,6 +574,14 @@ public class InneractiveMediationAdapter
         else
         {
             InneractiveAdManager.clearGdprConsentData();
+        }
+
+        if ( AppLovinSdk.VERSION_CODE >= 11_04_03_99 )
+        {
+            if ( parameters.getConsentString() != null )
+            {
+                InneractiveAdManager.setGdprConsentString( parameters.getConsentString() );
+            }
         }
 
         Bundle serverParameters = parameters.getServerParameters();
@@ -677,5 +683,11 @@ public class InneractiveMediationAdapter
         }
 
         return new MaxAdapterError( adapterError.getErrorCode(), adapterError.getErrorMessage(), adapterErrorCode, adapterErrorStr );
+    }
+
+    private Context getContext(Activity activity)
+    {
+        // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
+        return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
     }
 }

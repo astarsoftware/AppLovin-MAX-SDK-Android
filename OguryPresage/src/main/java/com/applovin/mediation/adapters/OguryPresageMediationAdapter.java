@@ -104,6 +104,8 @@ public class OguryPresageMediationAdapter
     {
         log( "Collecting signal..." );
 
+        updateUserConsent( parameters );
+
         final String bidderToken = OguryTokenProvider.getBidderToken( getContext( activity ) );
         callback.onSignalCollected( bidderToken );
     }
@@ -157,7 +159,7 @@ public class OguryPresageMediationAdapter
         else
         {
             log( "Interstitial ad not ready" );
-            listener.onInterstitialAdDisplayFailed( MaxAdapterError.AD_NOT_READY );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
     //endregion
@@ -206,7 +208,7 @@ public class OguryPresageMediationAdapter
         else
         {
             log( "Rewarded ad not ready" );
-            listener.onRewardedAdDisplayFailed( MaxAdapterError.AD_NOT_READY );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
     //endregion

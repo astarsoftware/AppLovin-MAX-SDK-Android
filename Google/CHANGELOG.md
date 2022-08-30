@@ -1,5 +1,52 @@
 # Changelog
 
+## 21.1.0.2
+* Add support for app open ads.
+
+## 21.1.0.1
+* Fix impression tracking for fullscreen ads.
+
+## 21.1.0.0
+* Certified with Google SDK 21.1.0.
+
+## 21.0.0.3
+* Add support for DV360 Bidding by updating the requester type (`requester_type_3`) and request agent (`applovin_dv360`).
+* Use local scope copy of native ad while preparing view.
+
+## 21.0.0.2
+* Add support for returning the main image asset in `MaxNativeAd` for native ads.
+
+## 21.0.0.1
+* Fix interstitial ad display failed callback not being mapped correctly.
+
+## 21.0.0.0
+* Certified with Google SDK 21.0.0.
+* MinSdkVersion required is now 19.
+
+## 20.6.0.11
+* Add support for providing native media content aspect ratio in `MaxNativeAdView`.
+
+## 20.6.0.10
+* Update ad display failed error code.
+
+## 20.6.0.9
+* Add ability to set [content mapping URLs](https://support.google.com/admob/answer/11050896) via local extra parameters by calling `setLocalExtraParameter("google_content_url", String)` or set multiple URLs by calling `setLocalExtraParameter("google_neighbouring_content_url_strings", List<String>)`.
+
+## 20.6.0.8
+* Remove check for manual native ad assets.
+
+## 20.6.0.7
+* Add support for null `Activity` context for native ads, native banner/MRECs, and regular banner/MRECs.
+
+## 20.6.0.6
+* Map `AdRequest.ERROR_CODE_INVALID_AD_STRING` error to MAX invalid configuration error.
+
+## 20.6.0.5
+* Add ability to set [maximum ad content rating](https://support.google.com/admob/answer/10477886) via local extra parameters by calling `setLocalExtraParameter("google_max_ad_content_rating", String)`.
+
+## 20.6.0.4
+* Fix potential memory leak with using Activity context for creating native ad views.
+
 ## 20.6.0.3
 * Fix version check minimum for local extra parameter API usage.
 

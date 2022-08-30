@@ -1,6 +1,7 @@
 package com.applovin.mediation.adapters;
 
 import android.app.Activity;
+import android.app.Application;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -80,7 +81,7 @@ public class CriteoMediationAdapter
     //region MaxAdapter Methods
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
         log( "Initializing Criteo SDK..." );
 
@@ -102,7 +103,7 @@ public class CriteoMediationAdapter
 
             try
             {
-                new Criteo.Builder( activity.getApplication(), publisherKey )
+                new Criteo.Builder( (Application) getApplicationContext(), publisherKey )
                         .debugLogsEnabled( parameters.isTesting() )
                         .init();
 
@@ -168,8 +169,6 @@ public class CriteoMediationAdapter
     @Override
     public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
     {
-        updatePrivacySettings( parameters );
-
         callback.onSignalCollected( "" ); // No-op since Criteo does not need the buyeruid to bid
     }
 
@@ -180,6 +179,13 @@ public class CriteoMediationAdapter
     @Override
     public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
     {
+        if ( !initialized.get() )
+        {
+            log( "Interstitial ad failed to load. Criteo SDK not initialized." );
+            listener.onInterstitialAdLoadFailed( MaxAdapterError.NOT_INITIALIZED );
+            return;
+        }
+
         final String placementId = parameters.getThirdPartyAdPlacementId();
         final boolean isBiddingAd = AppLovinSdkUtils.isValidString( parameters.getBidResponse() );
 
@@ -205,7 +211,7 @@ public class CriteoMediationAdapter
         else
         {
             e( "Interstitial ad failed to show: " + placementId );
-            listener.onInterstitialAdDisplayFailed( MaxAdapterError.AD_NOT_READY );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
 
@@ -216,6 +222,13 @@ public class CriteoMediationAdapter
     @Override
     public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
     {
+        if ( !initialized.get() )
+        {
+            log( adFormat.getLabel() + " ad failed to load. Criteo SDK not initialized." );
+            listener.onAdViewAdLoadFailed( MaxAdapterError.NOT_INITIALIZED );
+            return;
+        }
+
         final String placementId = parameters.getThirdPartyAdPlacementId();
         final boolean isBiddingAd = AppLovinSdkUtils.isValidString( parameters.getBidResponse() );
 
@@ -223,9 +236,16 @@ public class CriteoMediationAdapter
 
         updatePrivacySettings( parameters );
 
-        bannerView = new CriteoBannerView( activity, new BannerAdUnit( placementId, toAdSize( adFormat ) ) );
-        bannerView.setCriteoBannerAdListener( new AdViewListener( placementId, adFormat, listener ) );
-        bannerView.loadAdWithDisplayData( parameters.getBidResponse() );
+        runOnUiThread( new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                bannerView = new CriteoBannerView( activity.getApplicationContext(), new BannerAdUnit( placementId, toAdSize( adFormat ) ) );
+                bannerView.setCriteoBannerAdListener( new AdViewListener( placementId, adFormat, listener ) );
+                bannerView.loadAdWithDisplayData( parameters.getBidResponse() );
+            }
+        } );
     }
 
     //endregion
@@ -235,15 +255,20 @@ public class CriteoMediationAdapter
     @Override
     public void loadNativeAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxNativeAdAdapterListener listener)
     {
+        if ( !initialized.get() )
+        {
+            log( "Native ad failed to load. Criteo SDK not initialized" );
+            listener.onNativeAdLoadFailed( MaxAdapterError.NOT_INITIALIZED );
+            return;
+        }
+
         final String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Loading native ad: " + placementId + "..." );
 
         updatePrivacySettings( parameters );
 
-        final CriteoNativeLoader nativeLoader = new CriteoNativeLoader(
-                new NativeAdUnit( placementId ),
-                new MaxNativeAdListener( placementId, parameters, getApplicationContext(), listener ),
-                new MaxNativeAdListener( placementId, parameters, getApplicationContext(), listener ) );
+        final MaxNativeAdListener maxNativeAdListener = new MaxNativeAdListener( placementId, parameters, getApplicationContext(), listener );
+        final CriteoNativeLoader nativeLoader = new CriteoNativeLoader( new NativeAdUnit( placementId ), maxNativeAdListener, maxNativeAdListener );
 
         nativeLoader.loadAd();
     }
@@ -428,8 +453,7 @@ public class CriteoMediationAdapter
 
             final String templateName = BundleUtils.getString( "template", "", serverParameters );
             final boolean isTemplateAd = AppLovinSdkUtils.isValidString( templateName );
-
-            if ( !hasRequiredAssets( isTemplateAd, nativeAd ) )
+            if ( isTemplateAd && TextUtils.isEmpty( nativeAd.getTitle() ) )
             {
                 e( "Native ad (" + nativeAd + ") does not have required assets." );
                 listener.onNativeAdLoadFailed( MISSING_REQUIRED_NATIVE_AD_ASSETS );
@@ -455,15 +479,6 @@ public class CriteoMediationAdapter
                 {
                     final Drawable icon = getImageDrawable( iconUrl, context );
                     final Drawable media = getImageDrawable( mediaUrl, context );
-
-                    // Media view is required for non-template native ads.
-                    if ( !isTemplateAd && media == null )
-                    {
-                        e( "Media view asset is null for native custom ad view. Failing ad request." );
-                        listener.onNativeAdLoadFailed( MISSING_REQUIRED_NATIVE_AD_ASSETS );
-
-                        return;
-                    }
 
                     runOnUiThread( new Runnable()
                     {
@@ -579,20 +594,6 @@ public class CriteoMediationAdapter
             log( "Native ad image data retrieved" );
             return iconDrawable;
         }
-
-        private boolean hasRequiredAssets(final boolean isTemplateAd, final CriteoNativeAd nativeAd)
-        {
-            if ( isTemplateAd )
-            {
-                return AppLovinSdkUtils.isValidString( nativeAd.getTitle() );
-            }
-            else
-            {
-                // NOTE: Media view is required and is checked separately.
-                return AppLovinSdkUtils.isValidString( nativeAd.getTitle() )
-                        && AppLovinSdkUtils.isValidString( nativeAd.getCallToAction() );
-            }
-        }
     }
 
     private class MaxCriteoNativeAd
@@ -606,6 +607,7 @@ public class CriteoMediationAdapter
         @Override
         public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
         {
+            final CriteoNativeAd nativeAd = CriteoMediationAdapter.this.nativeAd;
             if ( nativeAd == null )
             {
                 e( "Failed to register native ad view: native ad is null." );

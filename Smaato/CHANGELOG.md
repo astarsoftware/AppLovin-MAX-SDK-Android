@@ -1,5 +1,42 @@
 # Changelog
 
+## 21.8.4.0
+* Certified with Smaato SDK 21.8.4.
+
+## 21.8.3.2
+* Use local scope copy of native ad while preparing view.
+* Update privacy settings before collecting signal.
+
+## 21.8.3.1
+* Add support for returning the main image asset in `MaxNativeAd` for native ads.
+
+## 21.8.3.0
+* Certified with Smaato SDK 21.8.3.
+
+## 21.8.2.1
+* Update ad display failed error code.
+
+## 21.8.2.0
+* Certified with Smaato SDK 21.8.2.
+
+## 21.8.1.2
+* Remove check for manual native ad assets.
+
+## 21.8.1.1
+* Add support for `null` Activity context for signal collection, regular banners/MRECs, and native ads.
+
+## 21.8.1.0
+* Certified with Smaato SDK 21.8.1.
+
+## 21.8.0.1
+* Add debug log for "is_location_collection_enabled" value.
+
+## 21.8.0.0
+* Certified with Smaato SDK 21.8.0.
+
+## 21.7.3.2
+* Downgrade Smaato SDK to 21.6.7, because 21.7.3 fails to build for Unity IDE.
+
 ## 21.7.3.1
 * Add support for passing local parameter "is_location_collection_enabled" to set `SmaatoSdk.setGPSEnabled(...)` for bidding.
 

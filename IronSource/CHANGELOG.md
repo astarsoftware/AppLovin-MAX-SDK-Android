@@ -1,5 +1,29 @@
 # Changelog
 
+## 7.2.4.1.0
+* Certified with IronSource SDK 7.2.4.1.
+
+## 7.2.4.0.0
+* Certified with IronSource SDK 7.2.4.
+
+## 7.2.3.1.0
+* Certified with IronSource SDK 7.2.3.1.
+
+## 7.2.3.0.0
+* Certified with IronSource SDK 7.2.3.
+
+## 7.2.2.1.0
+* Certified with IronSource SDK 7.2.2.1.
+
+## 7.2.2.0.0
+* Certified with IronSource SDK 7.2.2.
+
+## 7.2.1.1.1
+* Update ad display failed error code.
+
+## 7.2.1.1.0
+* Certified with IronSource SDK 7.2.1.1.
+
 ## 7.2.1.0.0
 * Certified with IronSource SDK 7.2.1.
 

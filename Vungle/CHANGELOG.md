@@ -1,5 +1,23 @@
 # Changelog
 
+## 6.12.0.0
+* Certified with Vungle SDK 6.12.0.
+
+## 6.11.0.2
+* Update privacy settings before collecting signal.
+
+## 6.11.0.1
+* Update ad display failed error code.
+
+## 6.11.0.0
+* Certified with Vungle SDK 6.11.0.
+
+## 6.10.5.2
+* Update COPPA to only be set before initialization.
+
+## 6.10.5.1
+* Add support for COPPA.
+
 ## 6.10.5.0
 * Certified with Vungle SDK 6.10.5.
 

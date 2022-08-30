@@ -1,5 +1,41 @@
 # Changelog
 
+## 6.11.0.5
+* Update privacy settings before collecting signal.
+
+## 6.11.0.4
+* Fix NPE caused by getting AdCoverImage from wrong object.
+
+## 6.11.0.3
+* Add support for returning the main image asset in `MaxNativeAd` for native ads.
+
+## 6.11.0.2
+* Fix potential NPE when getting media content aspect ratio.
+
+## 6.11.0.1
+* Add support for providing native media content aspect ratio in `MaxNativeAdView`.
+
+## 6.11.0.0
+* Certified with Facebook SDK 6.11.0.
+
+## 6.10.0.2
+* Update ad display failed error code.
+
+## 6.10.0.1
+* Remove check for manual native ad assets.
+
+## 6.10.0.0
+* Certified with Facebook SDK 6.10.0.
+
+## 6.8.0.15
+* Add support for `null` Activity context for native ads, native banners/MRECs, regular banners/MRECs, and true native banner ads.
+
+## 6.8.0.14
+* Update error code mapping for SDK error reports.
+
+## 6.8.0.13
+* Remove dependencies `com.android.support:recyclerview-v7:28.+` and `com.android.support:appcompat-v7:28.+` from Unity adapter.
+
 ## 6.8.0.12
 * Add support for using a media view instead of an icon for manual native banners.
 

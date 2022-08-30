@@ -25,6 +25,7 @@ import com.applovin.sdk.AppLovinSdkUtils;
 import com.unity3d.ads.IUnityAdsInitializationListener;
 import com.unity3d.ads.IUnityAdsLoadListener;
 import com.unity3d.ads.IUnityAdsShowListener;
+import com.unity3d.ads.IUnityAdsTokenListener;
 import com.unity3d.ads.UnityAds;
 import com.unity3d.ads.UnityAdsLoadOptions;
 import com.unity3d.ads.UnityAdsShowOptions;
@@ -46,9 +47,6 @@ public class UnityAdsMediationAdapter
         extends MediationAdapterBase
         implements MaxSignalProvider, MaxInterstitialAdapter, MaxRewardedAdapter, MaxAdViewAdapter
 {
-    private static final String KEY_GAME_ID                  = "game_id";
-    private static final String KEY_SET_MEDIATION_IDENTIFIER = "set_mediation_identifier";
-
     private static final AtomicBoolean        initialized = new AtomicBoolean();
     private static       InitializationStatus initializationStatus;
 
@@ -61,25 +59,22 @@ public class UnityAdsMediationAdapter
     @Override
     public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
     {
-        // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
-        Context context = ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
+        final Context context = getContext( activity );
 
         updatePrivacyConsent( parameters, context );
 
         if ( initialized.compareAndSet( false, true ) )
         {
             Bundle serverParameters = parameters.getServerParameters();
-            final String gameId = serverParameters.getString( KEY_GAME_ID, null );
+            final String gameId = serverParameters.getString( "game_id", null );
             log( "Initializing UnityAds SDK with game id: " + gameId + "..." );
             initializationStatus = InitializationStatus.INITIALIZING;
 
-            if ( serverParameters.getBoolean( KEY_SET_MEDIATION_IDENTIFIER ) )
-            {
-                MediationMetaData mediationMetaData = new MediationMetaData( context );
-                mediationMetaData.setName( UnityAdsMediationAdapter.mediationTag() );
-                mediationMetaData.setVersion( AppLovinSdk.VERSION );
-                mediationMetaData.commit();
-            }
+            MediationMetaData mediationMetaData = new MediationMetaData( context );
+            mediationMetaData.setName( "MAX" );
+            mediationMetaData.setVersion( AppLovinSdk.VERSION );
+            mediationMetaData.set( "adapter_version", getAdapterVersion() );
+            mediationMetaData.commit();
 
             UnityAds.setDebugMode( parameters.isTesting() );
 
@@ -136,8 +131,17 @@ public class UnityAdsMediationAdapter
     {
         log( "Collecting signal..." );
 
-        String signal = UnityAds.getToken();
-        callback.onSignalCollected( signal );
+        updatePrivacyConsent( parameters, activity.getApplicationContext() );
+
+        UnityAds.getToken( new IUnityAdsTokenListener()
+        {
+            @Override
+            public void onUnityAdsTokenReady(final String token)
+            {
+                log( "Collected signal" );
+                callback.onSignalCollected( token );
+            }
+        } );
     }
 
     @Override
@@ -145,14 +149,6 @@ public class UnityAdsMediationAdapter
     {
         String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + "interstitial ad for placement \"" + placementId + "\"..." );
-
-        if ( !UnityAds.isInitialized() )
-        {
-            log( "Unity Ads SDK is not initialized: failing interstitial ad load..." );
-            listener.onInterstitialAdLoadFailed( MaxAdapterError.NOT_INITIALIZED );
-
-            return;
-        }
 
         updatePrivacyConsent( parameters, activity.getApplicationContext() );
 
@@ -193,7 +189,7 @@ public class UnityAdsMediationAdapter
             public void onUnityAdsShowFailure(final String placementId, final UnityAds.UnityAdsShowError error, final String message)
             {
                 log( "Interstitial placement \"" + placementId + "\" failed to display with error: " + error + ": " + message );
-                listener.onInterstitialAdDisplayFailed( toMaxError( error, message ) );
+                listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", error.ordinal(), message ) );
             }
 
             @Override
@@ -224,14 +220,6 @@ public class UnityAdsMediationAdapter
     {
         String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + "rewarded ad for placement \"" + placementId + "\"..." );
-
-        if ( !UnityAds.isInitialized() )
-        {
-            log( "Unity Ads SDK is not initialized: failing rewarded ad load..." );
-            listener.onRewardedAdLoadFailed( MaxAdapterError.NOT_INITIALIZED );
-
-            return;
-        }
 
         updatePrivacyConsent( parameters, activity.getApplicationContext() );
 
@@ -275,7 +263,7 @@ public class UnityAdsMediationAdapter
             public void onUnityAdsShowFailure(final String placementId, final UnityAds.UnityAdsShowError error, final String message)
             {
                 log( "Rewarded ad placement \"" + placementId + "\" failed to display with error: " + error + ": " + message );
-                listener.onRewardedAdDisplayFailed( toMaxError( error, message ) );
+                listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", error.ordinal(), message ) );
             }
 
             @Override
@@ -313,10 +301,12 @@ public class UnityAdsMediationAdapter
         String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Loading banner ad for placement \"" + placementId + "\"..." );
 
-        if ( !UnityAds.isInitialized() )
+        if ( activity == null )
         {
-            log( "Unity Ads SDK is not initialized: failing banner ad load..." );
-            listener.onAdViewAdLoadFailed( MaxAdapterError.NOT_INITIALIZED );
+            log( "Banner ad load failed: Activity is null" );
+
+            MaxAdapterError error = new MaxAdapterError( -5601, "Missing Activity" );
+            listener.onAdViewAdLoadFailed( error );
 
             return;
         }
@@ -487,6 +477,7 @@ public class UnityAdsMediationAdapter
             if ( hasUserConsent != null )
             {
                 privacyMetaData.set( "gdpr.consent", hasUserConsent );
+                privacyMetaData.commit();
             }
         }
 
@@ -496,10 +487,19 @@ public class UnityAdsMediationAdapter
             if ( isDoNotSell != null ) // CCPA compliance - https://unityads.unity3d.com/help/legal/gdpr
             {
                 privacyMetaData.set( "privacy.consent", !isDoNotSell ); // isDoNotSell means user has opted out and is equivalent to false.
+                privacyMetaData.commit();
             }
         }
 
+        privacyMetaData.set( "privacy.mode", "mixed" );
         privacyMetaData.commit();
+
+        Boolean isAgeRestrictedUser = getPrivacySetting( "isAgeRestrictedUser", parameters );
+        if ( isAgeRestrictedUser != null )
+        {
+            privacyMetaData.set( "user.nonbehavioral", isAgeRestrictedUser );
+            privacyMetaData.commit();
+        }
     }
 
     private Boolean getPrivacySetting(final String privacySetting, final MaxAdapterParameters parameters)
@@ -516,5 +516,11 @@ public class UnityAdsMediationAdapter
             log( "Error getting privacy setting " + privacySetting + " with exception: ", exception );
             return ( AppLovinSdk.VERSION_CODE >= 9140000 ) ? null : false;
         }
+    }
+
+    private Context getContext(Activity activity)
+    {
+        // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
+        return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
     }
 }

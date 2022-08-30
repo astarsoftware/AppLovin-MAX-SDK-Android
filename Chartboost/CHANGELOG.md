@@ -1,5 +1,39 @@
 # Changelog
 
+## 9.0.0.1
+* Fix NPE caused by calling `getLocation()` on a null adView.
+
+## 9.0.0.0
+* Certified with Chartboost SDK 9.0.0.
+* Add collection of creative id for fullscreen ads.
+
+## 8.4.3.1
+* Fix incomplete ad display failure error message.
+
+## 8.4.3.0
+* Certified with Chartboost SDK 8.4.3.
+
+## 8.4.2.1
+* Update ad display failed error code.
+
+## 8.4.2.0
+* Certified with Chartboost SDK 8.4.2.
+
+## 8.4.1.3
+* Re-certified with Chartboost SDK 8.4.1.
+
+## 8.4.1.2
+* Downgrade Chartboost SDK to 8.3.1 due to Android build issues.
+
+## 8.4.1.1
+* Add support for COPPA.
+
+## 8.4.1.0
+* Certified with Chartboost SDK 8.4.1.
+
+## 8.4.0.0
+* Certified with Chartboost SDK 8.4.0.
+
 ## 8.3.1.1
 * Support for null `Activity` on init.
 

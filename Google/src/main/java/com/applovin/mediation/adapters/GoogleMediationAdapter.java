@@ -3,6 +3,9 @@ package com.applovin.mediation.adapters;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.Configuration;
+import android.content.res.Resources;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.text.TextUtils;
@@ -11,8 +14,6 @@ import android.view.Display;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ImageView;
-
-import androidx.annotation.NonNull;
 
 import com.applovin.impl.sdk.utils.BundleUtils;
 import com.applovin.mediation.MaxAdFormat;
@@ -24,6 +25,7 @@ import com.applovin.mediation.adapter.MaxRewardedAdapter;
 import com.applovin.mediation.adapter.MaxRewardedInterstitialAdapter;
 import com.applovin.mediation.adapter.MaxSignalProvider;
 import com.applovin.mediation.adapter.listeners.MaxAdViewAdapterListener;
+import com.applovin.mediation.adapter.listeners.MaxAppOpenAdapterListener;
 import com.applovin.mediation.adapter.listeners.MaxInterstitialAdapterListener;
 import com.applovin.mediation.adapter.listeners.MaxNativeAdAdapterListener;
 import com.applovin.mediation.adapter.listeners.MaxRewardedAdapterListener;
@@ -33,13 +35,12 @@ import com.applovin.mediation.adapter.parameters.MaxAdapterInitializationParamet
 import com.applovin.mediation.adapter.parameters.MaxAdapterParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
+import com.applovin.mediation.adapters.google.BuildConfig;
 import com.applovin.mediation.nativeAds.MaxNativeAd;
 import com.applovin.mediation.nativeAds.MaxNativeAdView;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkConfiguration;
 import com.applovin.sdk.AppLovinSdkUtils;
-import com.astarsoftware.android.ads.AdNetworkTracker;
-import com.astarsoftware.dependencies.DependencyInjector;
 import com.google.ads.mediation.admob.AdMobAdapter;
 import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdFormat;
@@ -55,6 +56,8 @@ import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.OnUserEarnedRewardListener;
 import com.google.android.gms.ads.RequestConfiguration;
 import com.google.android.gms.ads.ResponseInfo;
+import com.google.android.gms.ads.admanager.AdManagerAdRequest;
+import com.google.android.gms.ads.appopen.AppOpenAd;
 import com.google.android.gms.ads.initialization.AdapterStatus;
 import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
 import com.google.android.gms.ads.interstitial.InterstitialAd;
@@ -75,10 +78,14 @@ import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoa
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThread;
 
 /**
  * This is a mediation adapterWrapper for Google Play Services
@@ -93,12 +100,14 @@ public class GoogleMediationAdapter
     private static       InitializationStatus status;
 
     private InterstitialAd         interstitialAd;
+    private AppOpenAd              appOpenAd;
     private RewardedInterstitialAd rewardedInterstitialAd;
     private RewardedAd             rewardedAd;
     private AdView                 adView;
     private NativeAd               nativeAd;
     private NativeAdView           nativeAdView;
 
+    private AppOpenAdListener              appOpenAdListener;
     private RewardedInterstitialAdListener rewardedInterstitialAdListener;
     private RewardedAdListener             rewardedAdListener;
 
@@ -115,10 +124,10 @@ public class GoogleMediationAdapter
 
         if ( initialized.compareAndSet( false, true ) )
         {
-            // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
-            Context context = ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
+            Context context = getContext( activity );
 
             // Prevent AdMob SDK from auto-initing its adapters in AB testing environments.
+            // NOTE: If MAX makes an ad request to AdMob, and the AdMob account has AL enabled (e.g. AppLovin Bidding) _and_ detects the AdMob<->AppLovin adapter, AdMob will still attempt to initialize AppLovin
             MobileAds.disableMediationAdapterInitialization( context );
 
             if ( parameters.getServerParameters().getBoolean( "init_without_callback", false ) )
@@ -159,14 +168,14 @@ public class GoogleMediationAdapter
     @Override
     public String getSdkVersion()
     {
-        return status != null ? MobileAds.getVersionString() :
+        return status != null ? String.valueOf( MobileAds.getVersion() ) :
                 getAdapterVersion().substring( 0, getAdapterVersion().lastIndexOf( '.' ) );
     }
 
     @Override
     public String getAdapterVersion()
     {
-        return "20.6.0.3";
+        return BuildConfig.VERSION_NAME;
     }
 
     @Override
@@ -178,6 +187,13 @@ public class GoogleMediationAdapter
         {
             interstitialAd.setFullScreenContentCallback( null );
             interstitialAd = null;
+        }
+
+        if ( appOpenAd != null )
+        {
+            appOpenAd.setFullScreenContentCallback( null );
+            appOpenAd = null;
+            appOpenAdListener = null;
         }
 
         if ( rewardedInterstitialAd != null )
@@ -222,12 +238,11 @@ public class GoogleMediationAdapter
     {
         setRequestConfiguration( parameters );
 
-        // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
-        Context contextToUse = ( activity != null ) ? activity : getApplicationContext();
+        Context context = getContext( activity );
 
-        AdRequest adRequest = createAdRequestWithParameters( true, parameters.getAdFormat(), parameters, contextToUse );
+        AdRequest adRequest = createAdRequestWithParameters( true, parameters.getAdFormat(), parameters, context );
 
-        QueryInfo.generate( contextToUse, toAdFormat( parameters ), adRequest, new QueryInfoGenerationCallback()
+        QueryInfo.generate( context, toAdFormat( parameters ), adRequest, new QueryInfoGenerationCallback()
         {
             @Override
             public void onSuccess(@NonNull final QueryInfo queryInfo)
@@ -272,19 +287,6 @@ public class GoogleMediationAdapter
 
                 ResponseInfo responseInfo = interstitialAd.getResponseInfo();
                 String responseId = ( responseInfo != null ) ? responseInfo.getResponseId() : null;
-
-
-                // astar
-				Map<String, Object> networkInfo = new HashMap<>();
-				if (responseId != null) {
-					networkInfo.put("responseId", responseId);
-				}
-
-				AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
-				adTracker.adDidLoadForNetwork("admob", "max", "fullscreen", networkInfo);
-
-
-
                 if ( AppLovinSdk.VERSION_CODE >= 9150000 && AppLovinSdkUtils.isValidString( responseId ) )
                 {
                     Bundle extraInfo = new Bundle( 1 );
@@ -321,7 +323,77 @@ public class GoogleMediationAdapter
         else
         {
             log( "Interstitial ad failed to show: " + placementId );
-            listener.onInterstitialAdDisplayFailed( MaxAdapterError.AD_NOT_READY );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+        }
+    }
+
+    //endregion
+
+    //region MaxAppOpenAdapter Methods
+
+    @Override
+    public void loadAppOpenAd(final MaxAdapterResponseParameters parameters, @Nullable Activity activity, final MaxAppOpenAdapterListener listener)
+    {
+        final String placementId = parameters.getThirdPartyAdPlacementId();
+        boolean isBiddingAd = AppLovinSdkUtils.isValidString( parameters.getBidResponse() );
+        log( "Loading app open ad: " + placementId + "..." );
+
+        updateMuteState( parameters );
+        setRequestConfiguration( parameters );
+        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, MaxAdFormat.APP_OPEN, parameters, activity );
+        Context context = getContext( activity );
+        int orientation = AppLovinSdkUtils.getOrientation( context );
+
+        AppOpenAd.load( context, placementId, adRequest, orientation, new AppOpenAd.AppOpenAdLoadCallback()
+        {
+            @Override
+            public void onAdLoaded(final AppOpenAd ad)
+            {
+                log( "App open ad loaded: " + placementId + "..." );
+
+                appOpenAd = ad;
+                appOpenAdListener = new AppOpenAdListener( placementId, listener );
+                ad.setFullScreenContentCallback( appOpenAdListener );
+
+                ResponseInfo responseInfo = appOpenAd.getResponseInfo();
+                String responseId = responseInfo != null ? responseInfo.getResponseId() : null;
+                if ( AppLovinSdkUtils.isValidString( responseId ) )
+                {
+                    Bundle extraInfo = new Bundle( 1 );
+                    extraInfo.putString( "creative_id", responseId );
+
+                    listener.onAppOpenAdLoaded( extraInfo );
+                }
+                else
+                {
+                    listener.onAppOpenAdLoaded();
+                }
+            }
+
+            @Override
+            public void onAdFailedToLoad(final LoadAdError loadAdError)
+            {
+                MaxAdapterError adapterError = toMaxError( loadAdError );
+                log( "App open ad (" + placementId + ") failed to load with error: " + adapterError );
+                listener.onAppOpenAdLoadFailed( adapterError );
+            }
+        } );
+    }
+
+    @Override
+    public void showAppOpenAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxAppOpenAdapterListener listener)
+    {
+        String placementId = parameters.getThirdPartyAdPlacementId();
+        log( "Showing app open ad: " + placementId + "..." );
+
+        if ( appOpenAd != null )
+        {
+            appOpenAd.show( activity );
+        }
+        else
+        {
+            log( "App open ad failed to show: " + placementId );
+            listener.onAppOpenAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
 
@@ -398,7 +470,7 @@ public class GoogleMediationAdapter
         else
         {
             log( "Rewarded interstitial ad failed to show: " + placementId );
-            listener.onRewardedInterstitialAdDisplayFailed( MaxAdapterError.AD_NOT_READY );
+            listener.onRewardedInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
 
@@ -462,6 +534,7 @@ public class GoogleMediationAdapter
         if ( rewardedAd != null )
         {
             configureReward( parameters );
+
             rewardedAd.show( activity, new OnUserEarnedRewardListener()
             {
                 @Override
@@ -475,7 +548,7 @@ public class GoogleMediationAdapter
         else
         {
             log( "Rewarded ad failed to show: " + placementId );
-            listener.onRewardedAdDisplayFailed( MaxAdapterError.AD_NOT_READY );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
 
@@ -493,7 +566,9 @@ public class GoogleMediationAdapter
         log( "Loading " + ( isBiddingAd ? "bidding " : "" ) + ( isNative ? "native " : "" ) + adFormat.getLabel() + " ad for placement id: " + placementId + "..." );
 
         setRequestConfiguration( parameters );
-        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, adFormat, parameters, activity );
+
+        Context context = getContext( activity );
+        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, adFormat, parameters, context );
 
         if ( isNative )
         {
@@ -501,8 +576,9 @@ public class GoogleMediationAdapter
             nativeAdOptionsBuilder.setAdChoicesPlacement( getAdChoicesPlacement( parameters ) );
             nativeAdOptionsBuilder.setRequestMultipleImages( adFormat == MaxAdFormat.MREC ); // MRECs can handle multiple images via AdMob's media view
 
+            // NOTE: Activity context needed on older SDKs
             NativeAdViewListener nativeAdViewListener = new NativeAdViewListener( parameters, adFormat, activity, listener );
-            AdLoader adLoader = new AdLoader.Builder( activity, placementId )
+            AdLoader adLoader = new AdLoader.Builder( context, placementId )
                     .withNativeAdOptions( nativeAdOptionsBuilder.build() )
                     .forNativeAd( nativeAdViewListener )
                     .withAdListener( nativeAdViewListener )
@@ -512,13 +588,13 @@ public class GoogleMediationAdapter
         }
         else
         {
-            adView = new AdView( activity );
+            adView = new AdView( context );
             adView.setAdUnitId( placementId );
+            adView.setAdListener( new AdViewListener( placementId, adFormat, listener ) );
 
             // Check if adaptive banner sizes should be used
             boolean isAdaptiveBanner = parameters.getServerParameters().getBoolean( "adaptive_banner", false );
-            adView.setAdSize( toAdSize( adFormat, isAdaptiveBanner, activity ) );
-            adView.setAdListener( new AdViewListener( placementId, adFormat, listener ) );
+            adView.setAdSize( toAdSize( adFormat, isAdaptiveBanner, context ) );
 
             adView.loadAd( adRequest );
         }
@@ -528,7 +604,7 @@ public class GoogleMediationAdapter
 
     //region MaxNativeAdAdapter Methods
 
-    // @Override
+    @Override
     @SuppressLint("MissingPermission")
     public void loadNativeAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxNativeAdAdapterListener listener)
     {
@@ -537,7 +613,10 @@ public class GoogleMediationAdapter
         log( "Loading " + ( isBiddingAd ? "bidding " : "" ) + " native ad for placement id: " + placementId + "..." );
 
         setRequestConfiguration( parameters );
-        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, MaxAdFormat.NATIVE, parameters, activity );
+
+        // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
+        Context applicationContext = ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
+        AdRequest adRequest = createAdRequestWithParameters( isBiddingAd, MaxAdFormat.NATIVE, parameters, applicationContext );
 
         NativeAdOptions.Builder nativeAdOptionsBuilder = new NativeAdOptions.Builder();
         nativeAdOptionsBuilder.setAdChoicesPlacement( getAdChoicesPlacement( parameters ) );
@@ -546,8 +625,8 @@ public class GoogleMediationAdapter
         String template = BundleUtils.getString( "template", "", parameters.getServerParameters() );
         nativeAdOptionsBuilder.setRequestMultipleImages( template.contains( "medium" ) );
 
-        NativeAdListener nativeAdListener = new NativeAdListener( parameters, activity, listener );
-        AdLoader adLoader = new AdLoader.Builder( activity, placementId )
+        NativeAdListener nativeAdListener = new NativeAdListener( parameters, applicationContext, listener );
+        AdLoader adLoader = new AdLoader.Builder( applicationContext, placementId )
                 .withNativeAdOptions( nativeAdOptionsBuilder.build() )
                 .forNativeAd( nativeAdListener )
                 .withAdListener( nativeAdListener )
@@ -581,11 +660,15 @@ public class GoogleMediationAdapter
                 adapterError = MaxAdapterError.BAD_REQUEST;
                 break;
             case AdRequest.ERROR_CODE_APP_ID_MISSING:
+            case AdRequest.ERROR_CODE_INVALID_AD_STRING:
                 adapterError = MaxAdapterError.INVALID_CONFIGURATION;
                 break;
         }
 
-        return new MaxAdapterError( adapterError.getErrorCode(), adapterError.getErrorMessage(), googleErrorCode, googleAdsError.getMessage() );
+        return new MaxAdapterError( adapterError.getErrorCode(),
+                                    adapterError.getErrorMessage(),
+                                    googleErrorCode,
+                                    googleAdsError.getMessage() );
     }
 
     private AdSize toAdSize(final MaxAdFormat adFormat, boolean isAdaptiveBanner, final Context context)
@@ -669,16 +752,24 @@ public class GoogleMediationAdapter
         MobileAds.setRequestConfiguration( requestConfigurationBuilder.build() );
     }
 
+    @SuppressLint("ApplySharedPref")
     private AdRequest createAdRequestWithParameters(final boolean isBiddingAd, final MaxAdFormat adFormat, final MaxAdapterParameters parameters, final Context context)
     {
         AdRequest.Builder requestBuilder = new AdRequest.Builder();
-        Bundle networkExtras = new Bundle( 6 );
-
         Bundle serverParameters = parameters.getServerParameters();
+        Bundle networkExtras = new Bundle( 6 );
+        boolean isDv360Bidding = false;
+
         if ( isBiddingAd )
         {
-            // MAX specific
-            networkExtras.putString( "query_info_type", "requester_type_2" );
+            String bidderType = BundleUtils.getString( "bidder", "", serverParameters );
+            if ( "dv360".equalsIgnoreCase( bidderType ) )
+            {
+                isDv360Bidding = true;
+            }
+
+            // Requested by Google for signal collection
+            networkExtras.putString( "query_info_type", isDv360Bidding ? "requester_type_3" : "requester_type_2" );
 
             if ( AppLovinSdk.VERSION_CODE >= 11_00_00_00 && adFormat.isAdViewAd() )
             {
@@ -703,8 +794,9 @@ public class GoogleMediationAdapter
 
         if ( serverParameters.getBoolean( "set_mediation_identifier", true ) )
         {
-            // MAX specific
-            requestBuilder.setRequestAgent( "applovin" );
+            // Use "applovin" instead of mediationTag for Google's specs
+            // "applovin_dv360" is for DV360_BIDDING, which is a separate bidder from regular ADMOB_BIDDING
+            requestBuilder.setRequestAgent( isDv360Bidding ? "applovin_dv360" : "applovin" );
         }
 
         // Use event id as AdMob's placement request id
@@ -734,6 +826,37 @@ public class GoogleMediationAdapter
                         .edit()
                         .putInt( "gad_rdp", 1 )
                         .commit();
+            }
+        }
+
+        if ( AppLovinSdk.VERSION_CODE >= 11_00_00_00 )
+        {
+            Map<String, Object> localExtraParameters = parameters.getLocalExtraParameters();
+
+            Object maxContentRating = localExtraParameters.get( "google_max_ad_content_rating" );
+            if ( maxContentRating instanceof String )
+            {
+                networkExtras.putString( "max_ad_content_rating", (String) maxContentRating );
+            }
+
+            Object contentUrlString = localExtraParameters.get( "google_content_url" );
+            if ( contentUrlString instanceof String )
+            {
+                requestBuilder.setContentUrl( (String) contentUrlString );
+            }
+
+            Object neighbouringContentUrlStringsObject = localExtraParameters.get( "google_neighbouring_content_url_strings" );
+            if ( neighbouringContentUrlStringsObject instanceof List )
+            {
+                // try-catching unsafe cast to List<String> in case an incorrect list type is set.
+                try
+                {
+                    requestBuilder.setNeighboringContentUrls( (List<String>) neighbouringContentUrlStringsObject );
+                }
+                catch ( Throwable th )
+                {
+                    e( "Neighbouring content URL strings extra param needs to be of type List<String>.", th );
+                }
             }
         }
 
@@ -771,11 +894,6 @@ public class GoogleMediationAdapter
         }
     }
 
-    private boolean isValidNativeAd(final NativeAd nativeAd)
-    {
-        return nativeAd.getHeadline() != null;
-    }
-
     private int getAdChoicesPlacement(MaxAdapterResponseParameters parameters)
     {
         // Publishers can set via nativeAdLoader.setLocalExtraParameter( "admob_ad_choices_placement", ADCHOICES_BOTTOM_LEFT );
@@ -800,6 +918,12 @@ public class GoogleMediationAdapter
                         (Integer) placementObj == NativeAdOptions.ADCHOICES_BOTTOM_RIGHT );
     }
 
+    private Context getContext(@Nullable Activity activity)
+    {
+        // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
+        return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
+    }
+
     //endregion
 
     private class InterstitialAdListener
@@ -818,15 +942,21 @@ public class GoogleMediationAdapter
         public void onAdShowedFullScreenContent()
         {
             log( "Interstitial ad shown: " + placementId );
-            listener.onInterstitialAdDisplayed();
         }
 
         @Override
         public void onAdFailedToShowFullScreenContent(@NonNull final AdError adError)
         {
-            MaxAdapterError adapterError = toMaxError( adError );
+            MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", adError.getCode(), adError.getMessage() );
             log( "Interstitial ad (" + placementId + ") failed to show with error: " + adapterError );
-            listener.onInterstitialAdLoadFailed( adapterError );
+            listener.onInterstitialAdDisplayFailed( adapterError );
+        }
+
+        @Override
+        public void onAdImpression()
+        {
+            log( "Interstitial ad impression recorded: " + placementId );
+            listener.onInterstitialAdDisplayed();
         }
 
         @Override
@@ -841,6 +971,54 @@ public class GoogleMediationAdapter
         {
             log( "Interstitial ad hidden: " + placementId );
             listener.onInterstitialAdHidden();
+        }
+    }
+
+    private class AppOpenAdListener
+            extends FullScreenContentCallback
+    {
+        private final String                    placementId;
+        private final MaxAppOpenAdapterListener listener;
+
+        AppOpenAdListener(final String placementId, final MaxAppOpenAdapterListener listener)
+        {
+            this.placementId = placementId;
+            this.listener = listener;
+        }
+
+        @Override
+        public void onAdShowedFullScreenContent()
+        {
+            log( "App open ad shown: " + placementId );
+        }
+
+        @Override
+        public void onAdFailedToShowFullScreenContent(@NonNull final AdError adError)
+        {
+            MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad display failed", adError.getCode(), adError.getMessage() );
+            log( "App open ad (" + placementId + ") failed to show with error: " + adapterError );
+            listener.onAppOpenAdDisplayFailed( adapterError );
+        }
+
+        @Override
+        public void onAdImpression()
+        {
+            log( "App open ad impression recorded: " + placementId );
+            listener.onAppOpenAdDisplayed();
+        }
+
+        @Override
+        public void onAdClicked()
+        {
+            log( "App open ad clicked: " + placementId );
+            listener.onAppOpenAdClicked();
+        }
+
+        @Override
+        public void onAdDismissedFullScreenContent()
+        {
+            log( "App open ad hidden: " + placementId );
+            listener.onAppOpenAdHidden();
         }
     }
 
@@ -862,17 +1040,22 @@ public class GoogleMediationAdapter
         public void onAdShowedFullScreenContent()
         {
             log( "Rewarded interstitial ad shown: " + placementId );
-
-            listener.onRewardedInterstitialAdDisplayed();
             listener.onRewardedInterstitialAdVideoStarted();
         }
 
         @Override
         public void onAdFailedToShowFullScreenContent(@NonNull final AdError adError)
         {
-            MaxAdapterError adapterError = toMaxError( adError );
+            MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", adError.getCode(), adError.getMessage() );
             log( "Rewarded interstitial ad (" + placementId + ") failed to show with error: " + adapterError );
             listener.onRewardedInterstitialAdDisplayFailed( adapterError );
+        }
+
+        @Override
+        public void onAdImpression()
+        {
+            log( "Rewarded interstitial ad impression recorded: " + placementId );
+            listener.onRewardedInterstitialAdDisplayed();
         }
 
         @Override
@@ -917,17 +1100,22 @@ public class GoogleMediationAdapter
         public void onAdShowedFullScreenContent()
         {
             log( "Rewarded ad shown: " + placementId );
-
-            listener.onRewardedAdDisplayed();
             listener.onRewardedAdVideoStarted();
         }
 
         @Override
         public void onAdFailedToShowFullScreenContent(@NonNull final AdError adError)
         {
-            MaxAdapterError adapterError = toMaxError( adError );
+            MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", adError.getCode(), adError.getMessage() );
             log( "Rewarded ad (" + placementId + ") failed to show with error: " + adapterError );
             listener.onRewardedAdDisplayFailed( adapterError );
+        }
+
+        @Override
+        public void onAdImpression()
+        {
+            log( "Rewarded ad impression recorded: " + placementId );
+            listener.onRewardedAdDisplayed();
         }
 
         @Override
@@ -979,17 +1167,6 @@ public class GoogleMediationAdapter
 
                 ResponseInfo responseInfo = adView.getResponseInfo();
                 String responseId = ( responseInfo != null ) ? responseInfo.getResponseId() : null;
-
-				// astar
-				Map<String, Object> networkInfo = new HashMap<>();
-				if (responseId != null) {
-					networkInfo.put("responseId", responseId);
-				}
-
-				AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
-				adTracker.adDidLoadForNetwork("admob", "max", "banner", networkInfo);
-
-
                 if ( AppLovinSdkUtils.isValidString( responseId ) )
                 {
                     extraInfo.putString( "creative_id", responseId );
@@ -1066,18 +1243,7 @@ public class GoogleMediationAdapter
         {
             log( "Native " + adFormat.getLabel() + " ad loaded: " + placementId );
 
-            final Activity activity = activityRef.get();
-            if ( activity == null )
-            {
-                log( "Native " + adFormat.getLabel() + " ad failed to load: activity reference is null when ad is loaded" );
-                listener.onAdViewAdLoadFailed( MaxAdapterError.INVALID_LOAD_STATE );
-
-                nativeAd.destroy();
-
-                return;
-            }
-
-            if ( !isValidNativeAd( nativeAd ) )
+            if ( TextUtils.isEmpty( nativeAd.getHeadline() ) )
             {
                 log( "Native " + adFormat.getLabel() + " ad failed to load: Google native ad is missing one or more required assets" );
                 listener.onAdViewAdLoadFailed( MaxAdapterError.INVALID_CONFIGURATION );
@@ -1089,7 +1255,10 @@ public class GoogleMediationAdapter
 
             GoogleMediationAdapter.this.nativeAd = nativeAd;
 
-            final MediaView mediaView = new MediaView( activity );
+            final Activity activity = activityRef.get();
+            final Context context = getContext( activity );
+
+            final MediaView mediaView = new MediaView( context );
             MediaContent mediaContent = nativeAd.getMediaContent();
             if ( mediaContent != null )
             {
@@ -1125,7 +1294,7 @@ public class GoogleMediationAdapter
                 log( "Vertical native banners are only supported on MAX SDK 9.14.5 and above. Default horizontal native template will be used." );
             }
 
-            AppLovinSdkUtils.runOnUiThread( new Runnable()
+            runOnUiThread( new Runnable()
             {
                 @Override
                 public void run()
@@ -1140,7 +1309,7 @@ public class GoogleMediationAdapter
                     {
                         if ( AppLovinSdk.VERSION_CODE >= 11010000 )
                         {
-                            maxNativeAdView = new MaxNativeAdView( maxNativeAd, templateName, getApplicationContext() );
+                            maxNativeAdView = new MaxNativeAdView( maxNativeAd, templateName, context );
                         }
                         else
                         {
@@ -1148,7 +1317,7 @@ public class GoogleMediationAdapter
                         }
                     }
 
-                    nativeAdView = new NativeAdView( activity );
+                    nativeAdView = new NativeAdView( context );
                     nativeAdView.setIconView( maxNativeAdView.getIconContentView() );
                     nativeAdView.setHeadlineView( maxNativeAdView.getTitleTextView() );
                     nativeAdView.setBodyView( maxNativeAdView.getBodyTextView() );
@@ -1218,15 +1387,15 @@ public class GoogleMediationAdapter
     {
         final String                     placementId;
         final Bundle                     serverParameters;
-        final WeakReference<Activity>    activityRef;
+        final Context                    context;
         final MaxNativeAdAdapterListener listener;
 
-        public NativeAdListener(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxNativeAdAdapterListener listener)
+        public NativeAdListener(final MaxAdapterResponseParameters parameters, final Context context, final MaxNativeAdAdapterListener listener)
         {
             placementId = parameters.getThirdPartyAdPlacementId();
             serverParameters = parameters.getServerParameters();
-            activityRef = new WeakReference<>( activity );
 
+            this.context = context;
             this.listener = listener;
         }
 
@@ -1235,22 +1404,11 @@ public class GoogleMediationAdapter
         {
             log( "Native ad loaded: " + placementId );
 
-            final Activity activity = activityRef.get();
-            if ( activity == null )
-            {
-                log( "Native ad failed to load: activity reference is null when ad is loaded" );
-                listener.onNativeAdLoadFailed( MaxAdapterError.INVALID_LOAD_STATE );
-
-                nativeAd.destroy();
-
-                return;
-            }
-
             GoogleMediationAdapter.this.nativeAd = nativeAd;
 
             String templateName = BundleUtils.getString( "template", "", serverParameters );
             final boolean isTemplateAd = AppLovinSdkUtils.isValidString( templateName );
-            if ( !hasRequiredAssets( isTemplateAd, nativeAd ) )
+            if ( isTemplateAd && TextUtils.isEmpty( nativeAd.getHeadline() ) )
             {
                 e( "Native ad (" + nativeAd + ") does not have required assets." );
                 listener.onNativeAdLoadFailed( new MaxAdapterError( -5400, "Missing Native Ad Assets" ) );
@@ -1258,40 +1416,39 @@ public class GoogleMediationAdapter
                 return;
             }
 
-            AppLovinSdkUtils.runOnUiThread( new Runnable()
+            runOnUiThread( new Runnable()
             {
                 @Override
                 public void run()
                 {
                     View mediaView = null;
                     MediaContent mediaContent = nativeAd.getMediaContent();
+                    List<NativeAd.Image> images = nativeAd.getImages();
+                    Drawable mainImage = null;
+                    float mediaContentAspectRatio = 0.0f;
+
                     if ( mediaContent != null )
                     {
-                        MediaView googleMediaView = new MediaView( activity );
+                        MediaView googleMediaView = new MediaView( context );
                         googleMediaView.setMediaContent( mediaContent );
-
                         mediaView = googleMediaView;
+
+                        mainImage = mediaContent.getMainImage();
+                        mediaContentAspectRatio = mediaContent.getAspectRatio();
                     }
-                    else if ( nativeAd.getImages() != null )
+                    else if ( images != null && images.size() > 0 )
                     {
-                        List<NativeAd.Image> images = nativeAd.getImages();
-                        if ( images.size() > 0 )
+                        NativeAd.Image mediaImage = images.get( 0 );
+                        ImageView mediaImageView = new ImageView( context );
+                        Drawable mediaImageDrawable = mediaImage.getDrawable();
+
+                        if ( mediaImageDrawable != null )
                         {
-                            NativeAd.Image image = images.get( 0 );
-                            ImageView mainImageView = new ImageView( activity );
-                            mainImageView.setImageDrawable( image.getDrawable() );
+                            mediaImageView.setImageDrawable( mediaImageDrawable );
+                            mediaView = mediaImageView;
 
-                            mediaView = mainImageView;
+                            mediaContentAspectRatio = (float) mediaImageDrawable.getIntrinsicWidth() / (float) mediaImageDrawable.getIntrinsicHeight();
                         }
-                    }
-
-                    // Media view is required for non-template native ads.
-                    if ( !isTemplateAd && mediaView == null )
-                    {
-                        e( "Media view asset is null for native custom ad view. Failing ad request." );
-                        listener.onNativeAdLoadFailed( new MaxAdapterError( -5400, "Missing Native Ad Assets" ) );
-
-                        return;
                     }
 
                     NativeAd.Image icon = nativeAd.getIcon();
@@ -1316,6 +1473,17 @@ public class GoogleMediationAdapter
                             .setBody( nativeAd.getBody() )
                             .setMediaView( mediaView )
                             .setCallToAction( nativeAd.getCallToAction() );
+
+                    if ( AppLovinSdk.VERSION_CODE >= 11_04_03_99 )
+                    {
+                        builder.setMainImage( new MaxNativeAd.MaxNativeAdImage( mainImage ) );
+                    }
+
+                    if ( AppLovinSdk.VERSION_CODE >= 11_04_00_00 )
+                    {
+                        builder.setMediaContentAspectRatio( mediaContentAspectRatio );
+                    }
+
                     MaxNativeAd maxNativeAd = new MaxGoogleNativeAd( builder );
 
                     ResponseInfo responseInfo = nativeAd.getResponseInfo();
@@ -1361,20 +1529,6 @@ public class GoogleMediationAdapter
         {
             log( "Native ad closed" );
         }
-
-        private boolean hasRequiredAssets(final boolean isTemplateAd, final NativeAd nativeAd)
-        {
-            if ( isTemplateAd )
-            {
-                return AppLovinSdkUtils.isValidString( nativeAd.getHeadline() );
-            }
-            else
-            {
-                // NOTE: Media view is required and is checked separately.
-                return AppLovinSdkUtils.isValidString( nativeAd.getHeadline() )
-                        && AppLovinSdkUtils.isValidString( nativeAd.getCallToAction() );
-            }
-        }
     }
 
     private class MaxGoogleNativeAd
@@ -1388,6 +1542,7 @@ public class GoogleMediationAdapter
         @Override
         public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
         {
+            final NativeAd nativeAd = GoogleMediationAdapter.this.nativeAd;
             if ( nativeAd == null )
             {
                 e( "Failed to register native ad views: native ad is null." );

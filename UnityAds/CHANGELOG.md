@@ -1,5 +1,36 @@
 # Changelog
 
+## 4.3.0.0
+* Certified with UnityAds SDK 4.3.0.
+
+## 4.2.1.1
+* Update privacy settings before collecting signal.
+
+## 4.2.1.0
+* Certified with UnityAds SDK 4.2.1.
+
+## 4.2.0.0
+* Certified with UnityAds SDK 4.2.0.
+
+## 4.1.0.3
+* Update ad display failed error code.
+
+## 4.1.0.2
+* Update error message from "No Activity" to "Missing Activity" for internal codebase consistency.
+
+## 4.1.0.1
+* Gracefully fail banner/MRECs ad load if `Activity` context is null.
+
+## 4.1.0.0
+* Certified with UnityAds SDK 4.1.0.
+* Remove checks for UnityAds SDK being initialized before loading ads.
+
+## 4.0.1.2
+* Add support for COPPA. 
+
+## 4.0.1.1
+* Fix privacy consent by using `commit()` after each value is set to the metadata.
+
 ## 4.0.1.0
 * Certified with UnityAds SDK 4.0.1.
 

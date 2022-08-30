@@ -1,5 +1,55 @@
 # Changelog
 
+## 21.1.0.3
+* Fix `NoClassDefFoundError` introduced in 21.1.0.2. 
+
+## 21.1.0.2
+* Add support for app open ads.
+
+## 21.1.0.1
+* Fix impression tracking for fullscreen ads.
+
+## 21.1.0.0
+* Certified with GoogleAdManager SDK 21.1.0.
+* Use local scope copy of native ad while preparing view.
+
+## 21.0.0.2
+* Add support for returning the main image asset in `MaxNativeAd` for native ads.
+
+## 21.0.0.1
+* Fix interstitial ad display failed callback not being mapped correctly.
+
+## 21.0.0.0
+* Certified with GoogleAdManager SDK 21.0.0.
+* MinSdkVersion required is now 19.
+
+## 20.6.0.10
+* Add support for providing native media content aspect ratio in `MaxNativeAdView`.
+
+## 20.6.0.9
+* Update ad display failed error code.
+
+## 20.6.0.8
+* Add ability to set [custom targeting](https://developers.google.com/ad-manager/mobile-ads-sdk/android/targeting#custom_targeting) via local extra parameters by calling `setLocalExtraParameter("custom_targeting", Map<String, Object>)`, `Object` value must be either a `String` or `List<String>`.
+
+## 20.6.0.7
+* Add ability to set [content mapping URLs](https://support.google.com/admanager/answer/11050896) via local extra parameters by calling `setLocalExtraParameter("google_content_url", String)` or set multiple URLs by calling `setLocalExtraParameter("google_neighbouring_content_url_strings", List<String>)`.
+
+## 20.6.0.6
+* Remove check for manual native ad assets.
+
+## 20.6.0.5
+* Add support for null `Activity` context for native ads, native banner/MRECs, and regular banner/MRECs.
+
+## 20.6.0.4
+* Map `AdRequest.ERROR_CODE_INVALID_AD_STRING` error to MAX invalid configuration error.
+
+## 20.6.0.3
+* Add ability to set [maximum ad content rating](https://support.google.com/admanager/answer/9467073) via local extra parameters by calling `setLocalExtraParameter("google_max_ad_content_rating", String)`.
+
+## 20.6.0.2
+* Fix potential memory leak with using Activity context for creating native ad views.
+
 ## 20.6.0.1
 * Fix AdChoices `getLocalExtraParameters()` crash. Publishers can set a custom placement on AppLovin SDKs 11.0.0+ and the placement is defaulted to the top right corner otherwise.
 

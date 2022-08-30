@@ -1,5 +1,45 @@
 # Changelog
 
+## 10.0.9.1
+* Add impression callbacks for banners, MRECs, interstitials and rewarded ads and update `onAdImpressed()` to `onAdImpression()` for native ads.
+
+## 10.0.9.0
+* Certified with InMobi SDK 10.0.9.
+
+## 10.0.8.1
+* Use local scope copy of native ad while preparing view.
+* Update privacy settings before collecting signal.
+
+## 10.0.8.0
+* Certified with InMobi SDK 10.0.8.
+
+## 10.0.7.0
+* Certified with InMobi SDK 10.0.7.
+
+## 10.0.6.0
+* Certified with InMobi SDK 10.0.6.
+
+## 10.0.5.6
+* Update ad display failed error code.
+
+## 10.0.5.5
+* Remove check for manual native ad assets.
+
+## 10.0.5.4
+* Add support for null `Activity` context for regular banner/MRECs.
+
+## 10.0.5.3
+* Add support for native ads.
+
+## 10.0.5.2
+* Add support for both Family Apps and COPPA.
+
+## 10.0.5.1
+* Add support for COPPA.
+
+## 10.0.5.0
+* Certified with InMobi SDK 10.0.5.
+
 ## 10.0.3.1
 * Support for null `Activity` on init.
 

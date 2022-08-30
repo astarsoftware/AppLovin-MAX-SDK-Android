@@ -1,5 +1,56 @@
 # Changelog
 
+## 4.5.0.9.0
+* Certified with ByteDance SDK 4.5.0.9.
+
+## 4.5.0.7.0
+* Certified with ByteDance SDK 4.5.0.7.
+
+## 4.5.0.6.0
+* Certified with ByteDance SDK 4.5.0.6.
+
+## 4.5.0.5.0
+* Certified with ByteDance SDK 4.5.0.5.
+
+## 4.5.0.4.1
+* Add support for returning the main image asset in `MaxNativeAd` for native ads.
+
+## 4.5.0.4.0
+* Certified with ByteDance SDK 4.5.0.4.
+
+## 4.5.0.3.0
+* Certified with ByteDance SDK 4.5.0.3.
+
+## 4.3.0.9.0
+* Certified with ByteDance SDK 4.3.0.9.
+
+## 4.3.0.8.1
+* Update ad display failed error code.
+
+## 4.3.0.8.0
+* Certified with ByteDance SDK 4.3.0.8.
+
+## 4.3.0.7.5
+* Update to check SDK initialization status before collecting signal.
+
+## 4.3.0.7.4
+* Remove check for manual native ad assets.
+
+## 4.3.0.7.3
+* Add support for null `Activity` context for native banner/MRECs.
+
+## 4.3.0.7.2
+* Remove setting app name.
+
+## 4.3.0.7.1
+* Downgrade ByteDance SDK to 4.3.0.6.
+
+## 4.3.0.7.0
+* Certified with ByteDance SDK 4.3.0.7.
+
+## 4.3.0.6.0
+* Certified with ByteDance SDK 4.3.0.6.
+
 ## 4.3.0.4.0
 * Certified with ByteDance SDK 4.3.0.4.
 

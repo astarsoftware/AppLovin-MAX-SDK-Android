@@ -4,8 +4,8 @@ plugins {
 }
 
 private val versionMajor = 8
-private val versionMinor = 0
-private val versionPatch = 1
+private val versionMinor = 2
+private val versionPatch = 0
 private val versionAdapterPatch = 0
 
 val libraryVersionName by extra("${versionMajor}.${versionMinor}.${versionPatch}.${versionAdapterPatch}")
@@ -20,7 +20,7 @@ android.defaultConfig.versionCode = libraryVersionCode
 android.defaultConfig.versionName = libraryVersionName
 
 repositories {
-    maven { url = uri("http://fan-adn.github.io/nendSDK-Android-lib/library") }
+    maven { url = uri("https://fan-adn.github.io/nendSDK-Android-lib/library") }
 }
 
 dependencies {

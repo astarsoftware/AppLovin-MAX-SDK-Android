@@ -47,7 +47,6 @@ import com.my.target.nativeads.factories.NativeViewsFactory;
 import com.my.target.nativeads.views.MediaAdView;
 import com.my.target.nativeads.views.NativeAdView;
 
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -127,8 +126,7 @@ public class MyTargetMediationAdapter
 
             log( "Initializing myTarget SDK... " );
 
-            // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
-            Context context = ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
+            final Context context = getContext( activity );
 
             MyTargetManager.initSdk( context );
         }
@@ -141,8 +139,10 @@ public class MyTargetMediationAdapter
     {
         log( "Collecting signal..." );
 
+        updatePrivacyStates( parameters );
+
         // Must be ran on bg thread
-        String signal = MyTargetManager.getBidderToken( activity );
+        String signal = MyTargetManager.getBidderToken( getContext( activity ) );
         callback.onSignalCollected( signal );
     }
 
@@ -180,7 +180,7 @@ public class MyTargetMediationAdapter
         else
         {
             log( "Interstitial ad is null" );
-            listener.onInterstitialAdDisplayFailed( MaxAdapterError.UNSPECIFIED );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
 
@@ -220,7 +220,7 @@ public class MyTargetMediationAdapter
         else
         {
             log( "Rewarded ad is null" );
-            listener.onRewardedAdDisplayFailed( MaxAdapterError.UNSPECIFIED );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
 
@@ -230,7 +230,7 @@ public class MyTargetMediationAdapter
         final int slotId = Integer.parseInt( parameters.getThirdPartyAdPlacementId() );
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + " ad view with format: " + adFormat.getLabel() + " for slot id: " + slotId + "..." );
 
-        adView = new MyTargetView( activity );
+        adView = new MyTargetView( getContext( activity ) );
         adView.setSlotId( slotId );
         adView.setAdSize( getBannerSize( adFormat ) );
         adView.setRefreshAd( false ); // Disable auto-refreshing so MAX can control it
@@ -256,9 +256,9 @@ public class MyTargetMediationAdapter
         final int slotId = Integer.parseInt( parameters.getThirdPartyAdPlacementId() );
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + " native ad for slot id: " + slotId + "..." );
 
-        NativeAdListener adListener = new NativeAdListener( parameters, activity, listener );
+        NativeAdListener adListener = new NativeAdListener( parameters, getContext( activity ), listener );
 
-        nativeAd = new NativeAd( slotId, activity );
+        nativeAd = new NativeAd( slotId, getContext( activity ) );
         nativeAd.setListener( adListener );
         nativeAd.setMediaListener( adListener );
         nativeAd.getCustomParams().setCustomParam( "mediation", "7" ); // MAX specific
@@ -281,8 +281,10 @@ public class MyTargetMediationAdapter
 
     //region Helper Functions
 
-    private void updatePrivacyStates(final MaxAdapterResponseParameters parameters)
+    private void updatePrivacyStates(final MaxAdapterParameters parameters)
     {
+        // NOTE: Adapter / mediated SDK has support for COPPA, but is not approved by Play Store and therefore will be filtered on COPPA traffic
+        // https://support.google.com/googleplay/android-developer/answer/9283445?hl=eno
         Boolean isAgeRestrictedUser = getPrivacySetting( "isAgeRestrictedUser", parameters );
         if ( isAgeRestrictedUser != null )
         {
@@ -322,6 +324,12 @@ public class MyTargetMediationAdapter
             log( "Error getting privacy setting " + privacySetting + " with exception: ", exception );
             return ( AppLovinSdk.VERSION_CODE >= 9140000 ) ? null : false;
         }
+    }
+
+    private Context getContext(Activity activity)
+    {
+        // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
+        return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
     }
 
     private static MyTargetView.AdSize getBannerSize(final MaxAdFormat maxAdFormat)
@@ -508,14 +516,14 @@ public class MyTargetMediationAdapter
     {
         private final String                     slotId;
         private final Bundle                     serverParameters;
-        private final WeakReference<Activity>    activityRef;
+        private final Context                    context;
         private final MaxNativeAdAdapterListener listener;
 
-        NativeAdListener(final MaxAdapterResponseParameters parameters, final Activity activity, MaxNativeAdAdapterListener listener)
+        NativeAdListener(final MaxAdapterResponseParameters parameters, final Context context, MaxNativeAdAdapterListener listener)
         {
             slotId = parameters.getThirdPartyAdPlacementId();
             serverParameters = parameters.getServerParameters();
-            activityRef = new WeakReference<>( activity );
+            this.context = context;
 
             this.listener = listener;
         }
@@ -534,19 +542,10 @@ public class MyTargetMediationAdapter
                 return;
             }
 
-            final Activity activity = activityRef.get();
-            if ( activity == null )
-            {
-                log( "Native ad failed to load: activity reference is null when ad is loaded" );
-                listener.onNativeAdLoadFailed( MaxAdapterError.INVALID_LOAD_STATE );
-
-                return;
-            }
-
             final String templateName = BundleUtils.getString( "template", "", serverParameters );
             final boolean isTemplateAd = AppLovinSdkUtils.isValidString( templateName );
-
-            if ( !hasRequiredAssets( isTemplateAd, nativeAd ) )
+            final NativePromoBanner nativeBanner = nativeAd.getBanner();
+            if ( isTemplateAd && TextUtils.isEmpty( nativeBanner.getTitle() ) )
             {
                 e( "Native ad (" + nativeAd + ") does not have required assets." );
                 listener.onNativeAdLoadFailed( new MaxAdapterError( -5400, "Missing Native Ad Assets" ) );
@@ -554,34 +553,58 @@ public class MyTargetMediationAdapter
                 return;
             }
 
-            final NativePromoBanner nativeBanner = nativeAd.getBanner();
             final ImageData icon = nativeBanner.getIcon();
-            final MediaAdView mediaView = NativeViewsFactory.getMediaAdView( activity );
+            final ImageData mainImageData = nativeBanner.getImage();
+            final MediaAdView mediaView = NativeViewsFactory.getMediaAdView( context );
 
-            MaxNativeAd.MaxNativeAdImage maxNativeAdImage = null;
+            MaxNativeAd.MaxNativeAdImage iconImage = null;
+            MaxNativeAd.MaxNativeAdImage mainImage = null;
             if ( icon != null )
             {
                 if ( icon.getBitmap() != null )
                 {
-                    maxNativeAdImage = new MaxNativeAd.MaxNativeAdImage( new BitmapDrawable( activity.getResources(), icon.getBitmap() ) );
+                    iconImage = new MaxNativeAd.MaxNativeAdImage( new BitmapDrawable( context.getResources(), icon.getBitmap() ) );
                 }
                 else
                 {
-                    maxNativeAdImage = new MaxNativeAd.MaxNativeAdImage( Uri.parse( icon.getUrl() ) );
+                    iconImage = new MaxNativeAd.MaxNativeAdImage( Uri.parse( icon.getUrl() ) );
+                }
+            }
+            if ( mainImageData != null )
+            {
+                if ( mainImageData.getBitmap() != null )
+                {
+                    mainImage = new MaxNativeAd.MaxNativeAdImage( new BitmapDrawable( context.getResources(), mainImageData.getBitmap() ) );
+                }
+                else
+                {
+                    mainImage = new MaxNativeAd.MaxNativeAdImage( Uri.parse( mainImageData.getUrl() ) );
                 }
             }
 
-            nativeAdView = NativeViewsFactory.getNativeAdView( activity );
+            nativeAdView = NativeViewsFactory.getNativeAdView( context );
             nativeAdView.setupView( nativeAd.getBanner() );
 
-            final MaxNativeAd maxNativeAd = new MaxMyTargetNativeAd( new MaxNativeAd.Builder()
-                                                                             .setAdFormat( MaxAdFormat.NATIVE )
-                                                                             .setTitle( nativeBanner.getTitle() )
-                                                                             .setBody( nativeBanner.getDescription() )
-                                                                             .setCallToAction( nativeBanner.getCtaText() )
-                                                                             .setIcon( maxNativeAdImage )
-                                                                             .setMediaView( mediaView )
-                                                                             .setAdvertiser( nativeBanner.getAdvertisingLabel() ) );
+            final MaxNativeAd.Builder builder = new MaxNativeAd.Builder()
+                    .setAdFormat( MaxAdFormat.NATIVE )
+                    .setTitle( nativeBanner.getTitle() )
+                    .setBody( nativeBanner.getDescription() )
+                    .setCallToAction( nativeBanner.getCtaText() )
+                    .setIcon( iconImage )
+                    .setMediaView( mediaView )
+                    .setAdvertiser( nativeBanner.getAdvertisingLabel() );
+
+            if ( AppLovinSdk.VERSION_CODE >= 11_04_03_99 )
+            {
+                builder.setMainImage( mainImage );
+            }
+
+            if ( AppLovinSdk.VERSION_CODE >= 11_04_00_00 )
+            {
+                builder.setMediaContentAspectRatio( mediaView.getMediaAspectRatio() );
+            }
+
+            final MaxNativeAd maxNativeAd = new MaxMyTargetNativeAd( builder );
             listener.onNativeAdLoaded( maxNativeAd, null );
         }
 
@@ -634,23 +657,6 @@ public class MyTargetMediationAdapter
         public void onImageLoad(@NonNull final NativeAd nativeAd)
         {
             log( "Native ad image loaded: " + slotId );
-        }
-
-        private boolean hasRequiredAssets(final boolean isTemplateAd, final NativeAd nativeAd)
-        {
-            NativePromoBanner banner = nativeAd.getBanner();
-            if ( banner == null ) return false;
-
-            if ( isTemplateAd )
-            {
-                return AppLovinSdkUtils.isValidString( banner.getTitle() );
-            }
-            else
-            {
-                // NOTE: media view is created and will always be non-null
-                return AppLovinSdkUtils.isValidString( banner.getTitle() ) &&
-                        AppLovinSdkUtils.isValidString( banner.getCtaText() );
-            }
         }
     }
 

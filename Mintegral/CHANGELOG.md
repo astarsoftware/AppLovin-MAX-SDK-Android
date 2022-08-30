@@ -1,5 +1,60 @@
 # Changelog
 
+## 16.2.21.0
+* Certified with Mintegral SDK 16.2.21.
+
+## 16.2.11.2
+* Add append node for `com.mbridge.msdk.oversea:dycreator` dependency.
+
+## 16.2.11.1
+* Add `com.mbridge.msdk.oversea:dycreator` dependency.
+
+## 16.2.11.0
+* Certified with Mintegral SDK 16.2.11.
+
+## 16.1.91.0
+* Certified with Mintegral SDK 16.1.91.
+
+## 16.1.81.0
+* Certified with Mintegral SDK 16.1.81.
+
+## 16.1.71.0
+* Certified with Mintegral SDK 16.1.71.
+* Use local scope copy of native ad while preparing view.
+
+## 16.1.61.0
+* Certified with Mintegral SDK 16.1.61.
+
+## 16.1.51.1
+* Add support for returning the main image asset in `MaxNativeAd` for native ads.
+
+## 16.1.51.0
+* Certified with Mintegral SDK 16.1.51.
+
+## 16.1.41.0
+* Certified with Mintegral SDK 16.1.41.
+
+## 16.1.11.3
+* Unity: add `androidx.recyclerview:recyclerview` dependency.
+
+## 16.1.11.2
+* Add mapping for "load no ad" error message to MAX no fill.
+
+## 16.1.11.1
+* Update ad display failed error code.
+
+## 16.1.11.0
+* Certified with Mintegral SDK 16.1.11.
+
+## 16.0.31.2
+* Remove check for manual native ad assets.
+
+## 16.0.31.1
+* Add support for `null` Activity context for regular banners/MRECs and native ads.
+
+## 16.0.31.0
+* Certified with Mintegral SDK 16.0.31.
+
 ## 16.0.11.0
 * Certified with Mintegral SDK 16.0.11.
 

@@ -44,7 +44,7 @@ class TemplateNativeAdActivity : BaseAdActivity() {
             }
         })
         nativeAdLoader.setNativeAdListener(object : MaxNativeAdListener() {
-            override fun onNativeAdLoaded(nativeAdView: MaxNativeAdView, ad: MaxAd) {
+            override fun onNativeAdLoaded(nativeAdView: MaxNativeAdView?, ad: MaxAd) {
                 logAnonymousCallback()
 
                 // Cleanup any pre-existing native ad to prevent memory leaks.

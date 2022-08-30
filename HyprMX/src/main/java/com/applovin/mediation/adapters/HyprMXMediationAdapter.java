@@ -20,6 +20,7 @@ import com.applovin.mediation.adapter.listeners.MaxAdViewAdapterListener;
 import com.applovin.mediation.adapter.listeners.MaxInterstitialAdapterListener;
 import com.applovin.mediation.adapter.listeners.MaxRewardedAdapterListener;
 import com.applovin.mediation.adapter.parameters.MaxAdapterInitializationParameters;
+import com.applovin.mediation.adapter.parameters.MaxAdapterParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkConfiguration;
@@ -120,8 +121,10 @@ public class HyprMXMediationAdapter
 
             HyprMXLog.enableDebugLogs( parameters.isTesting() );
 
-            // NOTE: HyprMX deals with user consent and CCPA via their UI and don't support GDPR. Backend will filter HyprMX out in EU region.
-            HyprMX.INSTANCE.initialize( context, distributorId, userId, new HyprMXIf.HyprMXInitializationListener()
+            HyprMX.INSTANCE.setMediationProvider( "applovin_max", getAdapterVersion(), AppLovinSdk.VERSION );
+
+            // NOTE: HyprMX deals with CCPA via their UI. Backend will filter HyprMX out in EU region.
+            HyprMX.INSTANCE.initialize( context, distributorId, userId, getConsentStatus( parameters ), parameters.isAgeRestrictedUser(), new HyprMXIf.HyprMXInitializationListener()
             {
                 @Override
                 public void initializationComplete()
@@ -167,11 +170,14 @@ public class HyprMXMediationAdapter
 
         updateUserConsent( parameters );
 
-        adView = new HyprMXBannerView( activity.getApplicationContext(), null, placementId, toAdSize( adFormat ) );
+        // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
+        Context context = ( activity != null ) ? activity : getApplicationContext();
+
+        adView = new HyprMXBannerView( context, null, placementId, toAdSize( adFormat ) );
         adView.setListener( new AdViewListener( listener ) );
 
         DisplayMetrics displayMetrics = new DisplayMetrics();
-        WindowManager windowManager = (WindowManager) activity.getSystemService( Context.WINDOW_SERVICE );
+        WindowManager windowManager = (WindowManager) context.getSystemService( Context.WINDOW_SERVICE );
         Display display = windowManager.getDefaultDisplay();
         display.getMetrics( displayMetrics );
 
@@ -205,7 +211,7 @@ public class HyprMXMediationAdapter
         else
         {
             log( "Interstitial ad not ready" );
-            listener.onInterstitialAdDisplayFailed( MaxAdapterError.AD_NOT_READY );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
     }
 
@@ -236,24 +242,27 @@ public class HyprMXMediationAdapter
         else
         {
             log( "Rewarded ad not ready" );
-            listener.onRewardedAdDisplayFailed( MaxAdapterError.AD_NOT_READY );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+        }
+    }
+
+    private ConsentStatus getConsentStatus(final MaxAdapterParameters parameters)
+    {
+        Boolean hasUserConsent = parameters.hasUserConsent();
+        if ( hasUserConsent != null )
+        {
+            return hasUserConsent ? ConsentStatus.CONSENT_GIVEN : ConsentStatus.CONSENT_DECLINED;
+        }
+        else
+        {
+            return ConsentStatus.CONSENT_STATUS_UNKNOWN;
         }
     }
 
     private void updateUserConsent(final MaxAdapterResponseParameters parameters)
     {
-        if ( getWrappingSdk().getConfiguration().getConsentDialogState() == AppLovinSdkConfiguration.ConsentDialogState.APPLIES )
-        {
-            Boolean hasUserConsent = parameters.hasUserConsent();
-            if ( hasUserConsent != null )
-            {
-                HyprMX.INSTANCE.setConsentStatus( hasUserConsent ? ConsentStatus.CONSENT_GIVEN : ConsentStatus.CONSENT_DECLINED );
-            }
-            else
-            {
-                HyprMX.INSTANCE.setConsentStatus( ConsentStatus.CONSENT_STATUS_UNKNOWN );
-            }
-        }
+        // NOTE: HyprMX requested to always set GDPR regardless of region.
+        HyprMX.INSTANCE.setConsentStatus( getConsentStatus( parameters ) );
     }
 
     //region Helper Methods
@@ -420,7 +429,7 @@ public class HyprMXMediationAdapter
         @Override
         public void onAdDisplayError(Placement placement, HyprMXErrors hyprMXError)
         {
-            MaxAdapterError adapterError = toMaxError( hyprMXError );
+            MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", hyprMXError.ordinal(), "" );
             log( "Interstitial failed to display with error: " + adapterError + ", for placement: " + placement.getName() );
 
             listener.onInterstitialAdDisplayFailed( adapterError );

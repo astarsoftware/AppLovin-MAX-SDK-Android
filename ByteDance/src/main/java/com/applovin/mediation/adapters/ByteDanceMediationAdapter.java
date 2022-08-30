@@ -8,6 +8,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.ImageView;
 
@@ -45,9 +46,6 @@ import com.bytedance.sdk.openadsdk.TTImage;
 import com.bytedance.sdk.openadsdk.TTNativeAd;
 import com.bytedance.sdk.openadsdk.TTNativeExpressAd;
 import com.bytedance.sdk.openadsdk.TTRewardVideoAd;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
@@ -169,6 +167,8 @@ public class ByteDanceMediationAdapter
                 }
             }
 
+            // NOTE: Adapter / mediated SDK has support for COPPA, but is not approved by Play Store and therefore will be filtered on COPPA traffic
+            // https://support.google.com/googleplay/android-developer/answer/9283445?hl=en
             Boolean isAgeRestrictedUser = getPrivacySetting( "isAgeRestrictedUser", parameters );
             if ( isAgeRestrictedUser != null )
             {
@@ -185,7 +185,6 @@ public class ByteDanceMediationAdapter
             }
 
             TTAdConfig adConfig = builder.appId( appId )
-                    .appName( serverParameters.getString( "app_name", "Default App Name" ) )
                     .debug( parameters.isTesting() )
                     .supportMultiProcess( false )
                     .build();
@@ -255,6 +254,15 @@ public class ByteDanceMediationAdapter
     public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
     {
         log( "Collecting signal..." );
+
+        if ( status != InitializationStatus.INITIALIZED_SUCCESS )
+        {
+            String errorMessage = "Could not collect signal. SDK not initialized.";
+            log( errorMessage );
+            callback.onSignalCollectionFailed( errorMessage );
+
+            return;
+        }
 
         String signal = TTAdSdk.getAdManager().getBiddingToken();
         callback.onSignalCollected( signal );
@@ -388,7 +396,7 @@ public class ByteDanceMediationAdapter
 
     //region MaxNativeAdAdapter Methods
 
-    // @Override
+    @Override
     public void loadNativeAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxNativeAdAdapterListener listener)
     {
         String bidResponse = parameters.getBidResponse();
@@ -679,7 +687,7 @@ public class ByteDanceMediationAdapter
         public void onVideoError()
         {
             log( "Rewarded ad failed to display: " + codeId );
-            listener.onRewardedAdDisplayFailed( MaxAdapterError.UNSPECIFIED );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
 
         @Override
@@ -825,15 +833,6 @@ public class ByteDanceMediationAdapter
         @Override
         public void onFeedAdLoad(final List<TTFeedAd> ads)
         {
-            final Activity activity = activityRef.get();
-            if ( activity == null )
-            {
-                log( "Native " + adFormat.getLabel() + " ad (" + codeId + ") failed to load: activity reference is null when ad is loaded" );
-                listener.onAdViewAdLoadFailed( MaxAdapterError.INVALID_LOAD_STATE );
-
-                return;
-            }
-
             if ( ads == null || ads.size() == 0 )
             {
                 log( "Native " + adFormat.getLabel() + " ad (" + codeId + ") failed to load: no fill" );
@@ -855,12 +854,14 @@ public class ByteDanceMediationAdapter
                 executorServiceToUse = executor;
             }
 
+            final Activity activity = activityRef.get();
+            final Context context = getContext( activity );
             executorServiceToUse.execute( new Runnable()
             {
                 @Override
                 public void run()
                 {
-                    final Resources resources = activity.getResources();
+                    final Resources resources = context.getResources();
 
                     // Create image fetching tasks to run asynchronously in the background
                     Future<Drawable> iconDrawableFuture = null;
@@ -925,7 +926,7 @@ public class ByteDanceMediationAdapter
                     }
                     else
                     {
-                        mediaView = new ImageView( activity );
+                        mediaView = new ImageView( context );
                         if ( mediaViewImageDrawable != null )
                         {
                             ( (ImageView) mediaView ).setImageDrawable( mediaViewImageDrawable );
@@ -959,7 +960,7 @@ public class ByteDanceMediationAdapter
                             MaxNativeAdView maxNativeAdView;
                             if ( AppLovinSdk.VERSION_CODE >= 11010000 )
                             {
-                                maxNativeAdView = new MaxNativeAdView( maxNativeAd, templateName, getApplicationContext() );
+                                maxNativeAdView = new MaxNativeAdView( maxNativeAd, templateName, context );
                             }
                             else
                             {
@@ -1109,7 +1110,7 @@ public class ByteDanceMediationAdapter
 
             String templateName = BundleUtils.getString( "template", "", serverParameters );
             final boolean isTemplateAd = AppLovinSdkUtils.isValidString( templateName );
-            if ( !hasRequiredAssets( isTemplateAd, nativeAd ) )
+            if ( isTemplateAd && TextUtils.isEmpty( nativeAd.getTitle() ) )
             {
                 e( "Native ad (" + nativeAd + ") does not have required assets." );
                 listener.onNativeAdLoadFailed( new MaxAdapterError( -5400, "Missing Native Ad Assets" ) );
@@ -1194,15 +1195,6 @@ public class ByteDanceMediationAdapter
                                 mediaView = null;
                             }
 
-                            // Media view is required for non-template native ads.
-                            if ( !isTemplateAd && mediaView == null )
-                            {
-                                e( "Media view asset is null for native custom ad view. Failing ad request." );
-                                listener.onNativeAdLoadFailed( new MaxAdapterError( -5400, "Missing Native Ad Assets" ) );
-
-                                return;
-                            }
-
                             log( "Creating native ad with assets" );
 
                             MaxNativeAd.Builder builder = new MaxNativeAd.Builder()
@@ -1213,6 +1205,10 @@ public class ByteDanceMediationAdapter
                                     .setIcon( icon )
                                     .setMediaView( mediaView )
                                     .setOptionsView( nativeAd.getAdLogoView() );
+                            if ( AppLovinSdk.VERSION_CODE >= 11_04_03_99 )
+                            {
+                                builder.setMainImage( new MaxNativeAd.MaxNativeAdImage( finalMediaViewImageDrawable ) );
+                            }
                             MaxNativeAd maxNativeAd = new MaxByteDanceNativeAd( builder );
 
                             log( "Native ad fully loaded: " + codeId );
@@ -1294,20 +1290,6 @@ public class ByteDanceMediationAdapter
         public void onVideoAdComplete(final TTFeedAd ad)
         {
             log( "Native ad video completed" );
-        }
-
-        private boolean hasRequiredAssets(final boolean isTemplateAd, final TTFeedAd nativeAd)
-        {
-            if ( isTemplateAd )
-            {
-                return AppLovinSdkUtils.isValidString( nativeAd.getTitle() );
-            }
-            else
-            {
-                // NOTE: Media view is required and is checked separately.
-                return AppLovinSdkUtils.isValidString( nativeAd.getTitle() )
-                        && AppLovinSdkUtils.isValidString( nativeAd.getButtonText() );
-            }
         }
     }
 

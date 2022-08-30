@@ -1,5 +1,29 @@
 # Changelog
 
+## 5.15.1.7
+* Update privacy settings before collecting signal.
+
+## 5.15.1.6
+* Add support for returning the main image asset in `MaxNativeAd` for native ads.
+
+## 5.15.1.5
+* Add support for providing native media content aspect ratio in `MaxNativeAdView`.
+
+## 5.15.1.4
+* Update ad display failed error code.
+
+## 5.15.1.3
+* Remove check for manual native ad assets.
+
+## 5.15.1.2
+* Add support for `null` Activity context for signal collection, regular banners/MRECs, and native ads.
+
+## 5.15.1.1
+* Downgrade MyTarget SDK to 5.15.0, because 5.15.1 fails to build due to ExoPlayer version conflicts.
+
+## 5.15.1.0
+* Certified with MyTarget SDK 5.15.1.
+
 ## 5.15.0.3
 * Add support for Binary CCPA.
 
