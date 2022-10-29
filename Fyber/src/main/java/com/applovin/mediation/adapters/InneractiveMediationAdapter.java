@@ -22,9 +22,10 @@ import com.applovin.mediation.adapter.parameters.MaxAdapterInitializationParamet
 import com.applovin.mediation.adapter.parameters.MaxAdapterParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
-import com.applovin.mediation.adapters.inneractive.BuildConfig;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkConfiguration;
+import com.astarsoftware.android.ads.AdNetworkTracker;
+import com.astarsoftware.dependencies.DependencyInjector;
 import com.fyber.inneractive.sdk.external.BidTokenProvider;
 import com.fyber.inneractive.sdk.external.ImpressionData;
 import com.fyber.inneractive.sdk.external.InneractiveAdManager;
@@ -43,6 +44,8 @@ import com.fyber.inneractive.sdk.external.OnFyberMarketplaceInitializedListener;
 import com.fyber.inneractive.sdk.external.VideoContentListener;
 
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.applovin.sdk.AppLovinSdkUtils.isValidString;
@@ -115,7 +118,7 @@ public class InneractiveMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-        return BuildConfig.VERSION_NAME;
+        return "8.2.0.0";
     }
 
     @Override
@@ -189,12 +192,19 @@ public class InneractiveMediationAdapter
                     Bundle extraInfo = new Bundle( 1 );
                     extraInfo.putString( "creative_id", creativeId );
 
+					// astar
+					AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
+					Map<String,Object> networkInfo = getNetworkInfoFromImpressionData(impressionData);
+					adTracker.adDidLoadForNetwork("digital_turbine", "max", "interstitial", networkInfo);
+
                     listener.onInterstitialAdDisplayed( extraInfo );
                 }
                 else
                 {
                     listener.onInterstitialAdDisplayed();
                 }
+
+
             }
 
             @Override
@@ -468,6 +478,11 @@ public class InneractiveMediationAdapter
                     Bundle extraInfo = new Bundle( 1 );
                     extraInfo.putString( "creative_id", creativeId );
 
+					// astar
+					AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
+					Map<String,Object> networkInfo = getNetworkInfoFromImpressionData(impressionData);
+					adTracker.adDidLoadForNetwork("digital_turbine", "max", "banner", networkInfo);
+
                     listener.onAdViewAdDisplayed( extraInfo );
                 }
                 else
@@ -690,4 +705,25 @@ public class InneractiveMediationAdapter
         // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
         return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
     }
+
+	// astar
+	public Map<String, Object> getNetworkInfoFromImpressionData(ImpressionData impressionData) {
+		Map<String, Object> networkInfo = new HashMap<>();
+		if(!TextUtils.isEmpty(impressionData.getCreativeId())) {
+			networkInfo.put("creative_id",impressionData.getCreativeId());
+		}
+		if(!TextUtils.isEmpty(impressionData.getAdvertiserDomain())) {
+			networkInfo.put("advertiser_domain",impressionData.getAdvertiserDomain());
+		}
+		if(!TextUtils.isEmpty(impressionData.getCampaignId())) {
+			networkInfo.put("campaign_id",impressionData.getCampaignId());
+		}
+		if(!TextUtils.isEmpty(impressionData.getImpressionId())) {
+			networkInfo.put("impression_id",impressionData.getImpressionId());
+		}
+		if(!TextUtils.isEmpty(impressionData.getDemandSource())) {
+			networkInfo.put("demand_source",impressionData.getDemandSource());
+		}
+		return networkInfo;
+	}
 }

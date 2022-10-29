@@ -101,7 +101,7 @@ public class AmazonAdMarketplaceMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-       return "9.5.6.0";
+       return "9.5.7.0";
     }
 
     @Override
@@ -456,6 +456,7 @@ public class AmazonAdMarketplaceMediationAdapter
 			listener.onAdViewAdLoaded( view );
         }
 
+		// astar
 		public Map<String, Object> getNetworkInfoFromHtml(String html) {
 			Map<String, Object> networkInfo = new HashMap<>();
 
