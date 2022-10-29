@@ -656,13 +656,10 @@ public class GoogleAdManagerMediationAdapter
             networkExtras.putString( "placement_req_id", eventId );
         }
 
-        if ( getWrappingSdk().getConfiguration().getConsentDialogState() == AppLovinSdkConfiguration.ConsentDialogState.APPLIES )
+        Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
+        if ( hasUserConsent != null && !hasUserConsent )
         {
-            Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
-            if ( hasUserConsent != null && !hasUserConsent )
-            {
-                networkExtras.putString( "npa", "1" ); // Non-personalized ads
-            }
+            networkExtras.putString( "npa", "1" ); // Non-personalized ads
         }
 
         if ( AppLovinSdk.VERSION_CODE >= 91100 ) // Pre-beta versioning (9.14.0)
@@ -707,6 +704,12 @@ public class GoogleAdManagerMediationAdapter
                 {
                     e( "Neighbouring content URL strings extra param needs to be of type List<String>.", th );
                 }
+            }
+
+            Object publisherProvidedId = localExtraParameters.get( "ppid" );
+            if ( publisherProvidedId instanceof String )
+            {
+                requestBuilder.setPublisherProvidedId( (String) publisherProvidedId );
             }
 
             Object customTargetingDataObject = localExtraParameters.get( "custom_targeting" );
