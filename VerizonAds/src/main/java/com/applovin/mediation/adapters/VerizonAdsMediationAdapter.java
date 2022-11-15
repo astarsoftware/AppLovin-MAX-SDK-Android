@@ -26,32 +26,10 @@ import com.applovin.mediation.adapter.parameters.MaxAdapterInitializationParamet
 import com.applovin.mediation.adapter.parameters.MaxAdapterParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
-import com.applovin.mediation.adapters.verizonads.BuildConfig;
 import com.applovin.mediation.nativeAds.MaxNativeAd;
 import com.applovin.mediation.nativeAds.MaxNativeAdView;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkUtils;
-<<<<<<< HEAD
-import com.astarsoftware.android.ads.AdNetworkTracker;
-import com.astarsoftware.dependencies.DependencyInjector;
-import com.verizon.ads.ActivityStateManager;
-import com.verizon.ads.Component;
-import com.verizon.ads.CreativeInfo;
-import com.verizon.ads.DataPrivacy;
-import com.verizon.ads.ErrorInfo;
-import com.verizon.ads.Logger;
-import com.verizon.ads.RequestMetadata;
-import com.verizon.ads.VASAds;
-import com.verizon.ads.inlineplacement.AdSize;
-import com.verizon.ads.inlineplacement.InlineAdFactory;
-import com.verizon.ads.inlineplacement.InlineAdView;
-import com.verizon.ads.interstitialplacement.InterstitialAd;
-import com.verizon.ads.interstitialplacement.InterstitialAdFactory;
-import com.verizon.ads.nativeplacement.NativeAd;
-import com.verizon.ads.nativeplacement.NativeAdFactory;
-import com.verizon.ads.verizonnativecontroller.NativeImageComponent;
-import com.verizon.ads.verizonnativecontroller.NativeVideoComponent;
-=======
 import com.yahoo.ads.ActivityStateManager;
 import com.yahoo.ads.CcpaConsent;
 import com.yahoo.ads.CreativeInfo;
@@ -72,7 +50,9 @@ import com.yahoo.ads.yahoonativecontroller.NativeComponent;
 import com.yahoo.ads.yahoonativecontroller.NativeImageComponent;
 import com.yahoo.ads.yahoonativecontroller.NativeTextComponent;
 import com.yahoo.ads.yahoonativecontroller.NativeVideoComponent;
->>>>>>> a6b229e1d0b813a7ea1b170556fb904856057600
+
+import com.astarsoftware.android.ads.AdNetworkTracker;
+import com.astarsoftware.dependencies.DependencyInjector;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
@@ -145,7 +125,7 @@ public class VerizonAdsMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-        return "2.1.1.0";
+        return "2.2.0.1";
     }
 
     @Override
