@@ -73,6 +73,7 @@ public class AmazonAdMarketplaceMediationAdapter
     private DTBAdInterstitial interstitialAd;
     private DTBAdInterstitial rewardedAd;
 
+	// astar
     private MediationHints bannerHints = null;
     private MediationHints interstitialHints = null;
 
@@ -302,12 +303,14 @@ public class AmazonAdMarketplaceMediationAdapter
         {
             adView = new DTBAdView( getContext( activity ), new AdViewListener( listener ) );
             adView.fetchAd( mediationHints.value );
+			// astar
             this.bannerHints = mediationHints;
         }
         else
         {
             e( "Unable to find mediation hints" );
             listener.onAdViewAdLoadFailed( MaxAdapterError.INVALID_LOAD_STATE );
+			// astar
             this.bannerHints = null;
         }
     }
@@ -404,10 +407,14 @@ public class AmazonAdMarketplaceMediationAdapter
         if ( mediationHints == null )
         {
             e( "Unable to find mediation hints" );
+			// astar
+			this.interstitialHints = null;
             return false;
         }
 
         interstitial.fetchAd( mediationHints.value );
+		// astar
+		this.interstitialHints = mediationHints;
 
         return true;
     }
