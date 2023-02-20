@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.ViewGroup;
 
 import com.applovin.impl.sdk.utils.BundleUtils;
 import com.applovin.mediation.MaxAdFormat;
@@ -58,6 +59,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -68,6 +71,7 @@ public class MintegralMediationAdapter
 {
     private static final MintegralMediationAdapterRouter router;
     private static final AtomicBoolean                   initialized = new AtomicBoolean();
+    private static final ExecutorService                 executor    = Executors.newCachedThreadPool();
 
     private static final String APP_ID_PARAMETER  = "app_id";
     private static final String APP_KEY_PARAMETER = "app_key";
@@ -120,8 +124,9 @@ public class MintegralMediationAdapter
     private MBBidRewardVideoHandler       mbBidRewardVideoHandler;
     private MBBannerView                  mbBannerView;
     private MBBidNativeHandler            mbBidNativeHandler;
+    private MBBidNativeHandler            mbBidNativeAdViewHandler;
     private Campaign                      nativeAdCampaign;
-    private MaxNativeAdView               maxNativeAdView;
+    private ViewGroup                     nativeAdContainer;
     private List<View>                    clickableViews;
 
     static
@@ -164,6 +169,13 @@ public class MintegralMediationAdapter
                 {
                     mBridgeSDK.setDoNotTrackStatus( true );
                 }
+            }
+
+            // Has to be _before_ their SDK init as well
+            Boolean isAgeRestrictedUser = getPrivacySetting( "isAgeRestrictedUser", parameters );
+            if ( isAgeRestrictedUser != null )
+            {
+                mBridgeSDK.setCoppaStatus( context, isAgeRestrictedUser );
             }
 
             // Mintegral Docs - "It is recommended to use the API in the main thread"
@@ -227,10 +239,18 @@ public class MintegralMediationAdapter
 
         if ( mbBidNativeHandler != null )
         {
-            mbBidNativeHandler.unregisterView( maxNativeAdView, clickableViews, nativeAdCampaign );
+            mbBidNativeHandler.unregisterView( nativeAdContainer, clickableViews, nativeAdCampaign );
             mbBidNativeHandler.bidRelease();
             mbBidNativeHandler.setAdListener( null );
             mbBidNativeHandler = null;
+        }
+
+        if ( mbBidNativeAdViewHandler != null )
+        {
+            mbBidNativeAdViewHandler.unregisterView( nativeAdContainer, clickableViews, nativeAdCampaign );
+            mbBidNativeAdViewHandler.bidRelease();
+            mbBidNativeAdViewHandler.setAdListener( null );
+            mbBidNativeAdViewHandler = null;
         }
 
         nativeAdCampaign = null;
@@ -343,7 +363,7 @@ public class MintegralMediationAdapter
             log( "Unable to show interstitial - no ad loaded..." );
 
             // Ad load failed
-            router.onAdDisplayFailed( mbUnitId, new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            router.onAdDisplayFailed( mbUnitId, new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
         }
     }
 
@@ -450,101 +470,116 @@ public class MintegralMediationAdapter
             log( "Unable to show rewarded ad - no ad loaded..." );
 
             // Ad load failed
-            router.onAdDisplayFailed( mbUnitId, new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            router.onAdDisplayFailed( mbUnitId, new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
         }
     }
 
     @Override
     public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
     {
-        BannerSize size = toBannerSize( adFormat );
-
         mbUnitId = parameters.getThirdPartyAdPlacementId();
         final String placementId = BundleUtils.getString( "placement_id", parameters.getServerParameters() );
 
-        mbBannerView = new MBBannerView( getContext( activity ) );
-        mbBannerView.init( size, placementId, mbUnitId );
-        mbBannerView.setAllowShowCloseBtn( false );
-        mbBannerView.setRefreshTime( 0 );
+        final boolean isNative = parameters.getServerParameters().getBoolean( "is_native" );
+        log( "Loading" + ( isNative ? " native " : " " ) + adFormat.getLabel() + " AdView ad for placement: " + placementId + "..." );
 
-        mbBannerView.setBannerAdListener( new BannerAdListener()
+        if ( isNative )
         {
-            @Override
-            public void onLoadSuccessed(final MBridgeIds mBridgeIds)
-            {
-                log( "Banner ad loaded for: " + mBridgeIds );
+            Map<String, Object> properties = MBBidNativeHandler.getNativeProperties( placementId, mbUnitId );
+            properties.put( MBridgeConstans.PROPERTIES_AD_NUM, 1 ); // Only load one ad.
+            properties.put( MBridgeConstans.NATIVE_VIDEO_SUPPORT, true );
 
-                // Passing extra info such as creative id supported in 9.15.0+
-                if ( AppLovinSdk.VERSION_CODE >= 9150000 && !TextUtils.isEmpty( mbBannerView.getRequestId() ) )
-                {
-                    Bundle extraInfo = new Bundle( 1 );
-                    extraInfo.putString( "creative_id", mbBannerView.getRequestId() );
+            final NativeAdViewListener nativeAdViewListener = new NativeAdViewListener( parameters, adFormat, getContext( activity ), listener );
 
-                    listener.onAdViewAdLoaded( mbBannerView, extraInfo );
-                }
-                else
-                {
-                    listener.onAdViewAdLoaded( mbBannerView );
-                }
-            }
-
-            @Override
-            public void onLoadFailed(final MBridgeIds mBridgeIds, String msg)
-            {
-                log( "Banner ad failed to load: " + msg + " for: " + mBridgeIds );
-                listener.onAdViewAdLoadFailed( toMaxError( msg ) );
-            }
-
-            @Override
-            public void onLogImpression(final MBridgeIds mBridgeIds)
-            {
-                log( "Banner ad displayed" );
-                listener.onAdViewAdDisplayed();
-            }
-
-            @Override
-            public void onClick(final MBridgeIds mBridgeIds)
-            {
-                log( "Banner ad clicked" );
-                listener.onAdViewAdClicked();
-            }
-
-            @Override
-            public void onLeaveApp(final MBridgeIds mBridgeIds)
-            {
-                log( "Banner ad will leave application" );
-            }
-
-            @Override
-            public void showFullScreen(final MBridgeIds mBridgeIds)
-            {
-                log( "Banner ad expanded" );
-                listener.onAdViewAdExpanded();
-            }
-
-            @Override
-            public void closeFullScreen(final MBridgeIds mBridgeIds)
-            {
-                log( "Banner ad collapsed" );
-                listener.onAdViewAdCollapsed();
-            }
-
-            @Override
-            public void onCloseBanner(final MBridgeIds mBridgeIds)
-            {
-                log( "Banner ad closed" );
-            }
-        } );
-
-        if ( !TextUtils.isEmpty( parameters.getBidResponse() ) )
-        {
-            log( "Loading bidding banner ad for unit id: " + mbUnitId + " and placement id: " + placementId + "..." );
-            mbBannerView.loadFromBid( parameters.getBidResponse() );
+            // Native ads do not use the handler maps, because MBNativeHandler.setAdListener fails to update the ad listener after the first assignment.
+            mbBidNativeAdViewHandler = new MBBidNativeHandler( properties, getContext( activity ) );
+            mbBidNativeAdViewHandler.setAdListener( nativeAdViewListener );
+            mbBidNativeAdViewHandler.bidLoad( parameters.getBidResponse() );
         }
         else
         {
-            log( "Loading mediated banner ad for unit id: " + mbUnitId + " and placement id: " + placementId + "..." );
-            mbBannerView.load();
+            mbBannerView = new MBBannerView( getContext( activity ) );
+            mbBannerView.init( toBannerSize( adFormat ), placementId, mbUnitId );
+            mbBannerView.setAllowShowCloseBtn( false );
+            mbBannerView.setRefreshTime( 0 );
+
+            mbBannerView.setBannerAdListener( new BannerAdListener()
+            {
+                @Override
+                public void onLoadSuccessed(final MBridgeIds mBridgeIds)
+                {
+                    log( "Banner ad loaded for: " + mBridgeIds );
+
+                    // Passing extra info such as creative id supported in 9.15.0+
+                    if ( AppLovinSdk.VERSION_CODE >= 9_15_00_00 && AppLovinSdkUtils.isValidString( mbBannerView.getRequestId() ) )
+                    {
+                        Bundle extraInfo = new Bundle( 1 );
+                        extraInfo.putString( "creative_id", mbBannerView.getRequestId() );
+
+                        listener.onAdViewAdLoaded( mbBannerView, extraInfo );
+                    }
+                    else
+                    {
+                        listener.onAdViewAdLoaded( mbBannerView );
+                    }
+                }
+
+                @Override
+                public void onLoadFailed(final MBridgeIds mBridgeIds, String msg)
+                {
+                    log( "Banner ad failed to load: " + msg + " for: " + mBridgeIds );
+                    listener.onAdViewAdLoadFailed( toMaxError( msg ) );
+                }
+
+                @Override
+                public void onLogImpression(final MBridgeIds mBridgeIds)
+                {
+                    log( "Banner ad displayed" );
+                    listener.onAdViewAdDisplayed();
+                }
+
+                @Override
+                public void onClick(final MBridgeIds mBridgeIds)
+                {
+                    log( "Banner ad clicked" );
+                    listener.onAdViewAdClicked();
+                }
+
+                @Override
+                public void onLeaveApp(final MBridgeIds mBridgeIds)
+                {
+                    log( "Banner ad will leave application" );
+                }
+
+                @Override
+                public void showFullScreen(final MBridgeIds mBridgeIds)
+                {
+                    log( "Banner ad expanded" );
+                    listener.onAdViewAdExpanded();
+                }
+
+                @Override
+                public void closeFullScreen(final MBridgeIds mBridgeIds)
+                {
+                    log( "Banner ad collapsed" );
+                    listener.onAdViewAdCollapsed();
+                }
+
+                @Override
+                public void onCloseBanner(final MBridgeIds mBridgeIds)
+                {
+                    log( "Banner ad closed" );
+                }
+            } );
+
+            if ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) )
+            {
+                mbBannerView.loadFromBid( parameters.getBidResponse() );
+            }
+            else
+            {
+                mbBannerView.load();
+            }
         }
     }
 
@@ -581,6 +616,51 @@ public class MintegralMediationAdapter
         {
             log( "Error getting privacy setting " + privacySetting + " with exception: ", exception );
             return ( AppLovinSdk.VERSION_CODE >= 9140000 ) ? null : false;
+        }
+    }
+
+    private MaxNativeAdView createMaxNativeAdViewWithNativeAd(final MaxNativeAd maxNativeAd, final String templateName, final Context context)
+    {
+        if ( templateName.contains( "vertical" ) )
+        {
+            if ( AppLovinSdk.VERSION_CODE < 9_14_05_00 )
+            {
+                log( "Vertical native banners are only supported on MAX SDK 9.14.5 and above. Default horizontal native template will be used." );
+            }
+
+            if ( templateName.equals( "vertical" ) )
+            {
+                String verticalTemplateName = ( maxNativeAd.getFormat() == MaxAdFormat.LEADER ) ? "vertical_leader_template" : "vertical_media_banner_template";
+                return new MaxNativeAdView( maxNativeAd, verticalTemplateName, context );
+            }
+            else
+            {
+                return new MaxNativeAdView( maxNativeAd, templateName, context );
+            }
+        }
+        else if ( AppLovinSdk.VERSION_CODE < 9_14_05_00 )
+        {
+            return new MaxNativeAdView( maxNativeAd,
+                                        AppLovinSdkUtils.isValidString( templateName ) ? templateName : "no_body_banner_template",
+                                        context );
+        }
+        else
+        {
+            return new MaxNativeAdView( maxNativeAd,
+                                        AppLovinSdkUtils.isValidString( templateName ) ? templateName : "media_banner_template",
+                                        context );
+        }
+    }
+
+    private ExecutorService getExecutorServiceToUse()
+    {
+        if ( AppLovinSdk.VERSION_CODE >= 11_00_00_00 )
+        {
+            return getCachingExecutorService();
+        }
+        else
+        {
+            return executor;
         }
     }
 
@@ -643,6 +723,25 @@ public class MintegralMediationAdapter
         else
         {
             throw new IllegalArgumentException( "Unsupported ad format: " + adFormat );
+        }
+    }
+
+    private List<View> getClickableViews(final MaxNativeAdView maxNativeAdView)
+    {
+        if ( AppLovinSdk.VERSION_CODE < 11_05_03_00 )
+        {
+            List<View> clickableViews = new ArrayList<View>( 5 );
+            if ( maxNativeAdView.getTitleTextView() != null ) clickableViews.add( maxNativeAdView.getTitleTextView() );
+            if ( maxNativeAdView.getAdvertiserTextView() != null ) clickableViews.add( maxNativeAdView.getAdvertiserTextView() );
+            if ( maxNativeAdView.getBodyTextView() != null ) clickableViews.add( maxNativeAdView.getBodyTextView() );
+            if ( maxNativeAdView.getIconImageView() != null ) clickableViews.add( maxNativeAdView.getIconImageView() );
+            if ( maxNativeAdView.getCallToActionButton() != null ) clickableViews.add( maxNativeAdView.getCallToActionButton() );
+
+            return clickableViews;
+        }
+        else
+        {
+            return maxNativeAdView.getClickableViews();
         }
     }
 
@@ -868,6 +967,194 @@ public class MintegralMediationAdapter
         void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener) { }
     }
 
+    private class NativeAdViewListener
+            implements NativeListener.NativeAdListener, OnMBMediaViewListener
+    {
+        private final Bundle                   serverParameters;
+        private final MaxAdFormat              adFormat;
+        private final Context                  context;
+        private final MaxAdViewAdapterListener listener;
+        private final String                   unitId;
+        private final String                   placementId;
+
+        NativeAdViewListener(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Context context, final MaxAdViewAdapterListener listener)
+        {
+            this.serverParameters = parameters.getServerParameters();
+            this.adFormat = adFormat;
+            this.context = context;
+            this.listener = listener;
+
+            unitId = parameters.getThirdPartyAdPlacementId();
+            placementId = BundleUtils.getString( "placement_id", parameters.getServerParameters() );
+        }
+
+        //region NativeListener.NativeAdListener methods
+
+        @Override
+        public void onAdLoaded(final List<Campaign> campaigns, final int templates)
+        {
+            if ( campaigns == null || campaigns.isEmpty() )
+            {
+                log( "Native " + adFormat.getLabel() + " ad failed to load for unit id: " + unitId + " placement id: " + placementId + " with error: no fill" );
+                listener.onAdViewAdLoadFailed( MaxAdapterError.NO_FILL );
+
+                return;
+            }
+
+            final Campaign campaign = campaigns.get( 0 );
+            if ( TextUtils.isEmpty( campaign.getAppName() ) )
+            {
+                log( "Native " + adFormat.getLabel() + " ad failed to load for unit id: " + unitId + " placement id: " + placementId + " with error: missing required assets" );
+                listener.onAdViewAdLoadFailed( new MaxAdapterError( -5400, "Missing Native Ad Assets" ) );
+
+                return;
+            }
+
+            nativeAdCampaign = campaign;
+            log( "Native " + adFormat.getLabel() + " ad loaded for unit id: " + unitId + " placement id: " + placementId );
+
+            getExecutorServiceToUse().submit( new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                    final String iconUrl = campaign.getIconUrl();
+                    final String mainImageUrl = campaign.getImageUrl();
+                    final Future<Drawable> iconDrawableFuture = createDrawableFuture( iconUrl, context.getResources() );
+
+                    MaxNativeAd.MaxNativeAdImage iconImage = null;
+                    Uri uri = Uri.parse( mainImageUrl );
+                    final MaxNativeAd.MaxNativeAdImage mainImage = new MaxNativeAd.MaxNativeAdImage( uri );
+
+                    try
+                    {
+                        final int imageTaskTimeoutSeconds = BundleUtils.getInt( "image_task_timeout_seconds", DEFAULT_IMAGE_TASK_TIMEOUT_SECONDS, serverParameters );
+                        final Drawable iconDrawable = iconDrawableFuture.get( imageTaskTimeoutSeconds, TimeUnit.SECONDS );
+
+                        if ( iconDrawable != null )
+                        {
+                            iconImage = new MaxNativeAd.MaxNativeAdImage( iconDrawable );
+                        }
+                    }
+                    catch ( Throwable th )
+                    {
+                        log( "Failed to fetch icon image from URL: " + iconUrl, th );
+                    }
+
+                    // `iconImage` must be final to be used inside the Runnable.
+                    final MaxNativeAd.MaxNativeAdImage finalIconImage = iconImage;
+                    AppLovinSdkUtils.runOnUiThread( new Runnable()
+                    {
+                        @Override
+                        public void run()
+                        {
+                            final MBMediaView mediaView = new MBMediaView( context );
+                            mediaView.setNativeAd( campaign );
+                            mediaView.setOnMediaViewListener( NativeAdViewListener.this );
+
+                            final MBAdChoice adChoiceView = new MBAdChoice( context );
+                            adChoiceView.setCampaign( campaign );
+
+                            MaxNativeAd.Builder builder = new MaxNativeAd.Builder()
+                                    .setAdFormat( adFormat )
+                                    .setTitle( campaign.getAppName() )
+                                    .setBody( campaign.getAppDesc() )
+                                    .setCallToAction( campaign.getAdCall() )
+                                    .setIcon( finalIconImage )
+                                    .setMediaView( mediaView )
+                                    .setOptionsView( adChoiceView );
+
+                            final MaxMintegralNativeAd maxMintegralNativeAd = new MaxMintegralNativeAd( builder );
+
+                            final String templateName = BundleUtils.getString( "template", "", serverParameters );
+                            MaxNativeAdView maxNativeAdView = createMaxNativeAdViewWithNativeAd( maxMintegralNativeAd, templateName, context );
+
+                            maxMintegralNativeAd.prepareForInteraction( getClickableViews( maxNativeAdView ), maxNativeAdView );
+                            listener.onAdViewAdLoaded( maxNativeAdView );
+                        }
+                    } );
+                }
+            } );
+        }
+
+        @Override
+        public void onAdLoadError(final String message)
+        {
+            MaxAdapterError error = toMaxError( message );
+            log( "Native " + adFormat.getLabel() + " ad failed to load for unit id: " + unitId + " placement id: " + placementId + " with error: " + error );
+            listener.onAdViewAdLoadFailed( error );
+        }
+
+        @Override
+        public void onLoggingImpression(final int adSourceType)
+        {
+            log( "Native " + adFormat.getLabel() + " ad shown for unit id: " + unitId + " placement id: " + placementId );
+            listener.onAdViewAdDisplayed( null );
+        }
+
+        @Override
+        public void onAdClick(final Campaign campaign)
+        {
+            log( "Native " + adFormat.getLabel() + " ad clicked for unit id: " + unitId + " placement id: " + placementId );
+            listener.onAdViewAdClicked();
+        }
+
+        @Override
+        public void onAdFramesLoaded(final List<Frame> list)
+        {
+            log( "Native " + adFormat.getLabel() + " ad frames loaded for unit id: " + unitId + " placement id: " + placementId );
+        }
+
+        //endregion
+
+        //region ONMBMediaViewListener
+
+        @Override
+        public void onEnterFullscreen()
+        {
+            log( "Media view entered fullscreen" );
+        }
+
+        @Override
+        public void onExitFullscreen()
+        {
+            log( "Media view exited fullscreen" );
+        }
+
+        @Override
+        public void onStartRedirection(final Campaign campaign, final String url)
+        {
+            log( "Media view started redirection with url: " + url );
+        }
+
+        @Override
+        public void onFinishRedirection(final Campaign campaign, final String url)
+        {
+            log( "Media view finished redirection with url: " + url );
+        }
+
+        @Override
+        public void onRedirectionFailed(final Campaign campaign, final String url)
+        {
+            log( "Media view redirection failed with url: " + url );
+        }
+
+        @Override
+        public void onVideoAdClicked(final Campaign campaign)
+        {
+            log( "Media view clicked for unit id: " + unitId + " placement id: " + placementId );
+            listener.onAdViewAdClicked();
+        }
+
+        @Override
+        public void onVideoStart()
+        {
+            log( "Media view video started" );
+        }
+
+        //endregion
+    }
+
     private class NativeAdListener
             implements NativeListener.NativeAdListener, OnMBMediaViewListener
     {
@@ -997,7 +1284,7 @@ public class MintegralMediationAdapter
 
         private void processNativeAd(final Campaign campaign)
         {
-            getCachingExecutorService().submit( new Runnable()
+            getExecutorServiceToUse().submit( new Runnable()
             {
                 @Override
                 public void run()
@@ -1052,6 +1339,12 @@ public class MintegralMediationAdapter
                                 builder.setMainImage( mainImage );
                             }
 
+                            if ( AppLovinSdk.VERSION_CODE >= 11_07_00_00 )
+                            {
+                                // Only Android supports star rating for now
+                                builder.setStarRating( campaign.getRating() );
+                            }
+
                             final MaxNativeAd maxNativeAd = new MaxMintegralNativeAd( builder );
                             listener.onNativeAdLoaded( maxNativeAd, null );
                         }
@@ -1071,39 +1364,34 @@ public class MintegralMediationAdapter
         @Override
         public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
         {
+            prepareForInteraction( MintegralMediationAdapter.this.getClickableViews( maxNativeAdView ), maxNativeAdView );
+        }
+
+        // @Override
+        public boolean prepareForInteraction(final List<View> clickableViews, final ViewGroup container)
+        {
             final Campaign nativeAdCampaign = MintegralMediationAdapter.this.nativeAdCampaign;
             if ( nativeAdCampaign == null )
             {
                 e( "Failed to register native ad views: native ad is null." );
-                return;
+                return false;
             }
 
-            final List<View> clickableViews = new ArrayList<>();
-            if ( AppLovinSdkUtils.isValidString( getTitle() ) && maxNativeAdView.getTitleTextView() != null )
+            d( "Preparing views for interaction: " + clickableViews + " with container: " + container );
+
+            if ( getFormat() == MaxAdFormat.NATIVE )
             {
-                clickableViews.add( maxNativeAdView.getTitleTextView() );
+                mbBidNativeHandler.registerView( container, clickableViews, nativeAdCampaign );
             }
-            if ( AppLovinSdkUtils.isValidString( getBody() ) && maxNativeAdView.getBodyTextView() != null )
+            else
             {
-                clickableViews.add( maxNativeAdView.getBodyTextView() );
-            }
-            if ( AppLovinSdkUtils.isValidString( getCallToAction() ) && maxNativeAdView.getCallToActionButton() != null )
-            {
-                clickableViews.add( maxNativeAdView.getCallToActionButton() );
-            }
-            if ( getIcon() != null && maxNativeAdView.getIconImageView() != null )
-            {
-                clickableViews.add( maxNativeAdView.getIconImageView() );
-            }
-            if ( getMediaView() != null && maxNativeAdView.getMediaContentViewGroup() != null )
-            {
-                clickableViews.add( maxNativeAdView.getMediaContentViewGroup() );
+                mbBidNativeAdViewHandler.registerView( container, clickableViews, nativeAdCampaign );
             }
 
-            mbBidNativeHandler.registerView( maxNativeAdView, clickableViews, nativeAdCampaign );
-
-            MintegralMediationAdapter.this.maxNativeAdView = maxNativeAdView;
+            MintegralMediationAdapter.this.nativeAdContainer = container;
             MintegralMediationAdapter.this.clickableViews = clickableViews;
+
+            return true;
         }
     }
 }

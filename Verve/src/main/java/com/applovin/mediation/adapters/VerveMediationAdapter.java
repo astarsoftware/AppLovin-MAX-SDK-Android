@@ -171,7 +171,7 @@ public class VerveMediationAdapter
         else
         {
             log( "Interstitial ad not ready" );
-            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
         }
     }
 
@@ -209,7 +209,7 @@ public class VerveMediationAdapter
         else
         {
             log( "Rewarded ad not ready" );
-            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
         }
     }
 
@@ -244,14 +244,10 @@ public class VerveMediationAdapter
 
         UserDataManager userDataManager = HyBid.getUserDataManager();
 
-        if ( getWrappingSdk().getConfiguration().getConsentDialogState() == AppLovinSdkConfiguration.ConsentDialogState.APPLIES )
+        Boolean hasUserConsent = parameters.hasUserConsent();
+        if ( hasUserConsent != null && userDataManager != null && TextUtils.isEmpty( userDataManager.getIABGDPRConsentString() ) )
         {
-            Boolean hasUserConsent = parameters.hasUserConsent();
-            if ( hasUserConsent != null && userDataManager != null && TextUtils.isEmpty( userDataManager.getIABGDPRConsentString() ) )
-            {
-                userDataManager.setIABGDPRConsentString( hasUserConsent ? "1" : "0" );
-            }
-            else { /* Don't do anything if huc value not set */ }
+            userDataManager.setIABGDPRConsentString( hasUserConsent ? "1" : "0" );
         }
 
         // NOTE: Adapter / mediated SDK has support for COPPA, but is not approved by Play Store and therefore will be filtered on COPPA traffic
@@ -337,6 +333,10 @@ public class VerveMediationAdapter
                     break;
                 case INVALID_ASSET:
                 case UNSUPPORTED_ASSET:
+                case MRAID_PLAYER_ERROR:
+                case VAST_PLAYER_ERROR:
+                case ERROR_TRACKING_URL:
+                case ERROR_TRACKING_JS:
                     adapterError = MaxAdapterError.INVALID_CONFIGURATION;
                     break;
                 case PARSER_ERROR:
@@ -346,6 +346,7 @@ public class VerveMediationAdapter
                 case INVALID_AD:
                 case INVALID_ZONE_ID:
                 case INVALID_SIGNAL_DATA:
+                case INVALID_URL:
                     adapterError = MaxAdapterError.BAD_REQUEST;
                     break;
                 case NOT_INITIALISED:
@@ -359,6 +360,14 @@ public class VerveMediationAdapter
                     break;
                 case INTERNAL_ERROR:
                     adapterError = MaxAdapterError.INTERNAL_ERROR;
+                    break;
+                case DISABLED_FORMAT:
+                case DISABLED_RENDERING_ENGINE:
+                case ERROR_LOADING_FEEDBACK: 
+                    adapterError = MaxAdapterError.INVALID_LOAD_STATE;
+                    break;
+                case EXPIRED_AD:
+                    adapterError = MaxAdapterError.AD_EXPIRED;
                     break;
             }
         }

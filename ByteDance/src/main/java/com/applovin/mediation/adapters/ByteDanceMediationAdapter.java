@@ -10,6 +10,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.ViewGroup;
 
 import com.applovin.impl.sdk.utils.BundleUtils;
 import com.applovin.impl.sdk.utils.StringUtils;
@@ -177,13 +178,10 @@ public class ByteDanceMediationAdapter
             // Set mediation provider
             builder.setUserData( createAdConfigData( serverParameters, true ) );
 
-            if ( getWrappingSdk().getConfiguration().getConsentDialogState() == AppLovinSdkConfiguration.ConsentDialogState.APPLIES )
+            Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
+            if ( hasUserConsent != null )
             {
-                Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
-                if ( hasUserConsent != null )
-                {
-                    builder.setGDPRConsent( hasUserConsent ? 1 : 0 );
-                }
+                builder.setGDPRConsent( hasUserConsent ? 1 : 0 );
             }
 
             // NOTE: Adapter / mediated SDK has support for COPPA, but is not approved by Play Store and therefore will be filtered on COPPA traffic
@@ -1243,14 +1241,7 @@ public class ByteDanceMediationAdapter
         @Override
         public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
         {
-            PAGNativeAd nativeAd = ByteDanceMediationAdapter.this.nativeAd;
-            if ( nativeAd == null )
-            {
-                e( "Failed to register native ad view for interaction. Native ad is null" );
-                return;
-            }
-
-            List<View> clickableViews = new ArrayList<>();
+            final List<View> clickableViews = new ArrayList<>();
             if ( AppLovinSdkUtils.isValidString( getTitle() ) && maxNativeAdView.getTitleTextView() != null )
             {
                 clickableViews.add( maxNativeAdView.getTitleTextView() );
@@ -1268,15 +1259,25 @@ public class ByteDanceMediationAdapter
                 clickableViews.add( maxNativeAdView.getMediaContentViewGroup() );
             }
 
-            // CTA button is considered a creative view
-            List<View> creativeViews = new ArrayList<>();
-            if ( AppLovinSdkUtils.isValidString( getCallToAction() ) && maxNativeAdView.getCallToActionButton() != null )
+            prepareForInteraction( clickableViews, maxNativeAdView );
+        }
+
+        // @Override
+        public boolean prepareForInteraction(final List<View> clickableViews, final ViewGroup container)
+        {
+            final PAGNativeAd nativeAd = ByteDanceMediationAdapter.this.nativeAd;
+            if ( nativeAd == null )
             {
-                creativeViews.add( maxNativeAdView.getCallToActionButton() );
+                e( "Failed to register native ad view for interaction. Native ad is null" );
+                return false;
             }
 
-            // Here dislikeView is null since it is optional
-            nativeAd.registerViewForInteraction( maxNativeAdView, clickableViews, creativeViews, null, nativeAdListener );
+            d( "Preparing views for interaction: " + clickableViews + " with container: " + container );
+
+            // Here creativeViews and dislikeView are null since they are optional
+            nativeAd.registerViewForInteraction( container, clickableViews, null, null, nativeAdListener );
+
+            return true;
         }
     }
 }

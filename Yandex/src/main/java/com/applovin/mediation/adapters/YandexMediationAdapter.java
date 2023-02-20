@@ -229,7 +229,7 @@ public class YandexMediationAdapter
         if ( interstitialAd == null || !interstitialAd.isLoaded() )
         {
             log( "Interstitial ad failed to load - ad not ready" );
-            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
             return;
         }
 
@@ -263,7 +263,7 @@ public class YandexMediationAdapter
         if ( rewardedAd == null || !rewardedAd.isLoaded() )
         {
             log( "Rewarded ad failed to load - ad not ready" );
-            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
             return;
         }
 
@@ -328,13 +328,10 @@ public class YandexMediationAdapter
 
     private void updateUserConsent(final MaxAdapterParameters parameters)
     {
-        if ( getWrappingSdk().getConfiguration().getConsentDialogState() == AppLovinSdkConfiguration.ConsentDialogState.APPLIES )
+        Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
+        if ( hasUserConsent != null )
         {
-            Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
-            if ( hasUserConsent != null )
-            {
-                MobileAds.setUserConsent( hasUserConsent );
-            }
+            MobileAds.setUserConsent( hasUserConsent );
         }
     }
 

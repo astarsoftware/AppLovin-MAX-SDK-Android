@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.ViewGroup;
 
 import com.applovin.impl.sdk.utils.BundleUtils;
 import com.applovin.mediation.MaxAdFormat;
@@ -180,7 +181,7 @@ public class MyTargetMediationAdapter
         else
         {
             log( "Interstitial ad is null" );
-            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad is null" ) );
         }
     }
 
@@ -220,7 +221,7 @@ public class MyTargetMediationAdapter
         else
         {
             log( "Rewarded ad is null" );
-            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad is null" ) );
         }
     }
 
@@ -291,13 +292,10 @@ public class MyTargetMediationAdapter
             MyTargetPrivacy.setUserAgeRestricted( isAgeRestrictedUser );
         }
 
-        if ( getWrappingSdk().getConfiguration().getConsentDialogState() == AppLovinSdkConfiguration.ConsentDialogState.APPLIES )
+        Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
+        if ( hasUserConsent != null )
         {
-            Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
-            if ( hasUserConsent != null )
-            {
-                MyTargetPrivacy.setUserConsent( hasUserConsent );
-            }
+            MyTargetPrivacy.setUserConsent( hasUserConsent );
         }
 
         if ( AppLovinSdk.VERSION_CODE >= 91100 )
@@ -668,13 +666,6 @@ public class MyTargetMediationAdapter
         @Override
         public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
         {
-            NativeAd nativeAd = MyTargetMediationAdapter.this.nativeAd;
-            if ( nativeAd == null )
-            {
-                e( "Failed to register native ad views: native ad is null." );
-                return;
-            }
-
             final List<View> clickableViews = new ArrayList<>();
             if ( AppLovinSdkUtils.isValidString( getTitle() ) && maxNativeAdView.getTitleTextView() != null )
             {
@@ -701,9 +692,25 @@ public class MyTargetMediationAdapter
                 clickableViews.add( maxNativeAdView.getAdvertiserTextView() );
             }
 
-            nativeAd.registerView( maxNativeAdView, clickableViews );
+            prepareForInteraction( clickableViews, maxNativeAdView );
+        }
+
+        // @Override
+        public boolean prepareForInteraction(final List<View> clickableViews, final ViewGroup container)
+        {
+            NativeAd nativeAd = MyTargetMediationAdapter.this.nativeAd;
+            if ( nativeAd == null )
+            {
+                e( "Failed to register native ad views: native ad is null." );
+                return false;
+            }
+
+            d( "Preparing views for interaction: " + clickableViews + " with container: " + container );
+
+            nativeAd.registerView( container, clickableViews );
+
+            return true;
         }
     }
-
     //endregion
 }

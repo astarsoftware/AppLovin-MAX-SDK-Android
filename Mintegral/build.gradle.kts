@@ -5,7 +5,7 @@ plugins {
 
 // NOTE: Mintegral has 2 separate SDK versions, e.g. x.x.51 for Google Play & x.x.52 for Android Market (in China)
 private val versionMajor = 16
-private val versionMinor = 2
+private val versionMinor = 3
 private val versionPatch = 61
 private val versionAdapterPatch = 0
 

@@ -159,7 +159,7 @@ public class OguryPresageMediationAdapter
         else
         {
             log( "Interstitial ad not ready" );
-            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
         }
     }
     //endregion
@@ -208,7 +208,7 @@ public class OguryPresageMediationAdapter
         else
         {
             log( "Rewarded ad not ready" );
-            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
         }
     }
     //endregion
@@ -216,13 +216,10 @@ public class OguryPresageMediationAdapter
     //region Helper Methods
     private void updateUserConsent(final MaxAdapterParameters parameters)
     {
-        if ( getWrappingSdk().getConfiguration().getConsentDialogState() == AppLovinSdkConfiguration.ConsentDialogState.APPLIES )
+        Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
+        if ( hasUserConsent != null )
         {
-            Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
-            if ( hasUserConsent != null )
-            {
-                OguryChoiceManagerExternal.setConsent( hasUserConsent, "CUSTOM" );
-            }
+            OguryChoiceManagerExternal.setConsent( hasUserConsent, "CUSTOM" );
         }
     }
 

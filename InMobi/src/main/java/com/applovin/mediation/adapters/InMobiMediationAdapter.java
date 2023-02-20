@@ -8,6 +8,7 @@ import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.Display;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -53,7 +54,9 @@ import org.json.JSONObject;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -310,7 +313,7 @@ public class InMobiMediationAdapter
         if ( !success )
         {
             log( "Interstitial ad not ready" );
-            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
         }
     }
 
@@ -359,7 +362,7 @@ public class InMobiMediationAdapter
         if ( !success )
         {
             log( "Rewarded ad not ready" );
-            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
         }
     }
 
@@ -439,19 +442,10 @@ public class InMobiMediationAdapter
 
         try
         {
-            if ( getWrappingSdk().getConfiguration().getConsentDialogState() == AppLovinSdkConfiguration.ConsentDialogState.APPLIES )
+            Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
+            if ( hasUserConsent != null )
             {
-                consentObject.put( KEY_PARTNER_GDPR_APPLIES, 1 );
-
-                Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
-                if ( hasUserConsent != null )
-                {
-                    consentObject.put( KEY_PARTNER_GDPR_CONSENT, hasUserConsent );
-                }
-            }
-            else if ( getWrappingSdk().getConfiguration().getConsentDialogState() == AppLovinSdkConfiguration.ConsentDialogState.DOES_NOT_APPLY )
-            {
-                consentObject.put( KEY_PARTNER_GDPR_APPLIES, 0 );
+                consentObject.put( KEY_PARTNER_GDPR_CONSENT, hasUserConsent );
             }
         }
         catch ( JSONException ex )
@@ -488,6 +482,15 @@ public class InMobiMediationAdapter
         if ( isAgeRestrictedUser != null )
         {
             extras.put( "coppa", isAgeRestrictedUser ? "1" : "0" );
+        }
+
+        if ( AppLovinSdk.VERSION_CODE >= 9_11_00 )
+        {
+            Boolean isDoNotSell = getPrivacySetting( "isDoNotSell", parameters );
+            if ( isDoNotSell != null )
+            {
+                extras.put( "do_not_sell", isDoNotSell ? "1" : "0" );
+            }
         }
 
         return extras;
@@ -595,6 +598,25 @@ public class InMobiMediationAdapter
         }
 
         return new MaxAdapterError( adapterError.getErrorCode(), adapterError.getErrorMessage(), inMobiErrorCode.ordinal(), inMobiError.getMessage() );
+    }
+
+    private List<View> getClickableViews(final MaxNativeAdView maxNativeAdView)
+    {
+        if ( AppLovinSdk.VERSION_CODE < 11_05_03_00 )
+        {
+            List<View> clickableViews = new ArrayList<View>( 5 );
+            if ( maxNativeAdView.getTitleTextView() != null ) clickableViews.add( maxNativeAdView.getTitleTextView() );
+            if ( maxNativeAdView.getAdvertiserTextView() != null ) clickableViews.add( maxNativeAdView.getAdvertiserTextView() );
+            if ( maxNativeAdView.getBodyTextView() != null ) clickableViews.add( maxNativeAdView.getBodyTextView() );
+            if ( maxNativeAdView.getIconImageView() != null ) clickableViews.add( maxNativeAdView.getIconImageView() );
+            if ( maxNativeAdView.getCallToActionButton() != null ) clickableViews.add( maxNativeAdView.getCallToActionButton() );
+
+            return clickableViews;
+        }
+        else
+        {
+            return maxNativeAdView.getClickableViews();
+        }
     }
 
     //endregion
@@ -980,7 +1002,7 @@ public class InMobiMediationAdapter
                                                                          activity );
                             }
 
-                            maxInMobiNativeAd.prepareViewForInteraction( maxNativeAdView );
+                            maxInMobiNativeAd.prepareForInteraction( getClickableViews( maxNativeAdView ), maxNativeAdView );
 
                             if ( AppLovinSdk.VERSION_CODE >= 9_15_00_00 && AppLovinSdkUtils.isValidString( adMetaInfo.getCreativeID() ) )
                             {
@@ -1126,6 +1148,11 @@ public class InMobiMediationAdapter
                             .setIcon( new MaxNativeAd.MaxNativeAdImage( iconDrawable ) )
                             .setCallToAction( inMobiNative.getAdCtaText() );
 
+                    if ( AppLovinSdk.VERSION_CODE >= 11_07_00_00 )
+                    {
+                        builder.setStarRating( (double) inMobiNative.getAdRating() );
+                    }
+
                     final MaxInMobiNativeAd maxInMobiNativeAd = new MaxInMobiNativeAd( listener, builder, MaxAdFormat.NATIVE );
                     if ( AppLovinSdkUtils.isValidString( adMetaInfo.getCreativeID() ) )
                     {
@@ -1213,18 +1240,23 @@ public class InMobiMediationAdapter
         @Override
         public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
         {
+            prepareForInteraction( InMobiMediationAdapter.this.getClickableViews( maxNativeAdView ), maxNativeAdView );
+        }
+
+        // @Override
+        public boolean prepareForInteraction(final List<View> clickableViews, final ViewGroup container)
+        {
             final InMobiNative nativeAd = InMobiMediationAdapter.this.nativeAd;
             if ( nativeAd == null )
             {
                 e( "Failed to register native ad views: native ad is null." );
-                return;
+                return false;
             }
 
             // We don't provide the aspect ratio for InMobi's media view since the media view is rendered after the ad is rendered
             final FrameLayout mediaView = (FrameLayout) getMediaView();
             final FrameLayout.LayoutParams params = new FrameLayout.LayoutParams( FrameLayout.LayoutParams.MATCH_PARENT,
                                                                                   FrameLayout.LayoutParams.MATCH_PARENT );
-
             mediaView.setLayoutParams( params );
             mediaView.post( new Runnable()
             {
@@ -1276,18 +1308,12 @@ public class InMobiMediationAdapter
             };
 
             // InMobi does not provide a method to bind views with landing url, so we need to do it manually
-            AppLovinSdkUtils.runOnUiThread( new Runnable()
+            for ( View clickableView : clickableViews )
             {
-                @Override
-                public void run()
-                {
-                    if ( maxNativeAdView.getTitleTextView() != null ) maxNativeAdView.getTitleTextView().setOnClickListener( clickListener );
-                    if ( maxNativeAdView.getAdvertiserTextView() != null ) maxNativeAdView.getAdvertiserTextView().setOnClickListener( clickListener );
-                    if ( maxNativeAdView.getBodyTextView() != null ) maxNativeAdView.getBodyTextView().setOnClickListener( clickListener );
-                    if ( maxNativeAdView.getIconImageView() != null ) maxNativeAdView.getIconImageView().setOnClickListener( clickListener );
-                    if ( maxNativeAdView.getCallToActionButton() != null ) maxNativeAdView.getCallToActionButton().setOnClickListener( clickListener );
-                }
-            } );
+                if ( clickableView != null ) clickableView.setOnClickListener( clickListener );
+            }
+
+            return true;
         }
     }
 }

@@ -204,7 +204,7 @@ public class ChartboostMediationAdapter
         else
         {
             log( "Interstitial ad not ready" );
-            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
         }
     }
 
@@ -249,7 +249,7 @@ public class ChartboostMediationAdapter
         else
         {
             log( "Rewarded ad not ready" );
-            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
         }
     }
 
@@ -284,14 +284,11 @@ public class ChartboostMediationAdapter
 
     private void updateConsentStatus(MaxAdapterParameters parameters, Context applicationContext)
     {
-        if ( getWrappingSdk().getConfiguration().getConsentDialogState() == AppLovinSdkConfiguration.ConsentDialogState.APPLIES )
+        Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
+        if ( hasUserConsent != null )
         {
-            Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
-            if ( hasUserConsent != null )
-            {
-                DataUseConsent gdprConsent = new GDPR( hasUserConsent ? GDPR.GDPR_CONSENT.BEHAVIORAL : GDPR.GDPR_CONSENT.NON_BEHAVIORAL );
-                Chartboost.addDataUseConsent( applicationContext, gdprConsent );
-            }
+            DataUseConsent gdprConsent = new GDPR( hasUserConsent ? GDPR.GDPR_CONSENT.BEHAVIORAL : GDPR.GDPR_CONSENT.NON_BEHAVIORAL );
+            Chartboost.addDataUseConsent( applicationContext, gdprConsent );
         }
 
         if ( AppLovinSdk.VERSION_CODE >= 91100 )
@@ -389,6 +386,8 @@ public class ChartboostMediationAdapter
             case BANNER_VIEW_IS_DETACHED:
                 adapterError = MaxAdapterError.INVALID_CONFIGURATION;
                 break;
+            case SERVER_ERROR:
+                adapterError = MaxAdapterError.SERVER_ERROR;
         }
 
         return new MaxAdapterError( adapterError, chartboostError.getCode().getErrorCode(), chartboostError.toString() );
@@ -456,7 +455,7 @@ public class ChartboostMediationAdapter
                 else
                 {
                     log( "Ad load failed: Chartboost Banner AdView is not ready." );
-                    listener.onAdViewAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+                    listener.onAdViewAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "AdView ad not ready" ) );
                 }
             }
         }, 500 );

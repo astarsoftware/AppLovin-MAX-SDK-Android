@@ -1,5 +1,24 @@
 # Changelog
 
+## 10.1.2.4
+* Remove `consentDialogState` guard.
+
+## 10.1.2.3
+* Add support for star ratings in manual native ads.
+
+## 10.1.2.2
+* Add CCPA support.
+
+## 10.1.2.1
+* Support for native ads in external plugins (e.g. React Native).
+
+## 10.1.2.0
+* Certified with InMobi SDK 10.1.2.
+* Add additional details for ad display failures.
+
+## 10.1.1.0
+* Certified with InMobi SDK 10.1.1.
+
 ## 10.0.9.3
 * Fix NPE caused due to calling `InMobiNative.getAdTitle()` on a `null` native ad instance.
 

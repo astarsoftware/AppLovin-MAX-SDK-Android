@@ -74,6 +74,13 @@ public class InneractiveMediationAdapter
         {
             status = InitializationStatus.INITIALIZING;
 
+            // NOTE: Digital Turbine requires that we set this API once per app session, before the SDK is initialized.
+            Boolean isAgeRestrictedUser = getPrivacySetting( "isAgeRestrictedUser", parameters );
+            if ( isAgeRestrictedUser != null && isAgeRestrictedUser )
+            {
+                InneractiveAdManager.currentAudienceIsAChild();
+            }
+
             final String appId = parameters.getServerParameters().getString( "app_id", null );
             log( "Initializing Inneractive SDK with app id: " + appId + "..." );
 
@@ -284,7 +291,7 @@ public class InneractiveMediationAdapter
         else
         {
             log( "Interstitial ad not ready" );
-            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
         }
     }
 
@@ -449,7 +456,7 @@ public class InneractiveMediationAdapter
         else
         {
             log( "Rewarded ad not ready" );
-            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
         }
     }
 
@@ -578,13 +585,10 @@ public class InneractiveMediationAdapter
     {
         InneractiveAdManager.setUserId( getWrappingSdk().getUserIdentifier() );
 
-        if ( getWrappingSdk().getConfiguration().getConsentDialogState() == AppLovinSdkConfiguration.ConsentDialogState.APPLIES )
+        Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
+        if ( hasUserConsent != null )
         {
-            Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
-            if ( hasUserConsent != null )
-            {
-                InneractiveAdManager.setGdprConsent( hasUserConsent );
-            }
+            InneractiveAdManager.setGdprConsent( hasUserConsent );
         }
         else
         {

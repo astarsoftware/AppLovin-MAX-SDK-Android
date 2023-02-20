@@ -1,5 +1,18 @@
 # Changelog
 
+## 6.12.1.0
+* Certified with Vungle SDK 6.12.1.
+
+## 6.12.0.5
+* Remove `consentDialogState` guard.
+
+## 6.12.0.4
+* Update to pass the correct icon view to register.
+
+## 6.12.0.3
+* Update error code mapping
+* Add additional details for ad display failures.
+
 ## 6.12.0.2
 * Add support for app open ads.
 

@@ -1,5 +1,44 @@
 # Changelog
 
+## 5.0.0.6.0
+* Certified with ByteDance SDK 5.0.0.6.
+
+## 4.9.0.9.0
+* Certified with ByteDance SDK 4.9.0.9.
+
+## 4.9.0.8.0
+* Certified with ByteDance SDK 4.9.0.8.
+
+## 4.9.0.7.0
+* Certified with ByteDance SDK 4.9.0.7.
+
+## 4.9.0.6.1
+* Remove `consentDialogState` guard.
+
+## 4.9.0.6.0
+* Certified with ByteDance SDK 4.9.0.6.
+
+## 4.8.1.0.0
+* Certified with ByteDance SDK 4.8.1.0.
+
+## 4.8.0.9.0
+* Certified with ByteDance SDK 4.8.0.9.
+
+## 4.8.0.8.2
+* Support for native ads in external plugins (e.g. React Native).
+
+## 4.8.0.8.1
+* Roll back offloading `registerViewForInteraction()` onto bg thread to prevent ANR due to proclaimed clickability issues.
+
+## 4.8.0.8.0
+* Certified with ByteDance SDK 4.8.0.8.
+
+## 4.8.0.5.1
+* Fix `registerViewForInteraction()` ANR when rendering native ad.
+
+## 4.8.0.5.0
+* Certified with ByteDance SDK 4.8.0.5.
+
 ## 4.7.0.9.1
 * Remove initialization status check before collecting signal.
 

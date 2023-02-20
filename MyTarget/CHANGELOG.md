@@ -1,5 +1,24 @@
 # Changelog
 
+## 5.16.3.1
+* Remove `consentDialogState` guard.
+
+## 5.16.3.0
+* Certified with MyTarget SDK 5.16.3.
+
+## 5.16.2.0
+* Certified with MyTarget SDK 5.16.2.
+
+## 5.16.1.0
+* Certified with MyTarget SDK 5.16.1.
+
+## 5.16.0.1
+* Support for native ads in external plugins (e.g. React Native).
+
+## 5.16.0.0
+* Certified with MyTarget SDK 5.16.0.
+* Add additional details for ad display failures.
+
 ## 5.15.5.0
 * Certified with MyTarget SDK 5.15.5.
 

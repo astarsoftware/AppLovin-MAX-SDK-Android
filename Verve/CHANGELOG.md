@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.17.0.0
+* Certified with Verve SDK 2.17.0.
+
+## 2.16.2.1
+* Remove `consentDialogState` guard.
+
+## 2.16.2.0
+* Certified with Verve SDK 2.16.2.
+
+## 2.16.1.1
+* Update adapter error code mapping.
+
+## 2.16.1.0
+* Certified with Verve SDK 2.16.1.
+* Add additional details for ad display failures.
+
 ## 2.16.0.0
 * Certified with Verve SDK 2.16.0.
 
