@@ -1,7 +1,5 @@
 package com.applovin.mediation.adapters;
 
-import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThread;
-
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
@@ -14,9 +12,6 @@ import android.view.Display;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ImageView;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import com.applovin.impl.sdk.utils.BundleUtils;
 import com.applovin.mediation.MaxAdFormat;
@@ -38,6 +33,7 @@ import com.applovin.mediation.adapter.parameters.MaxAdapterInitializationParamet
 import com.applovin.mediation.adapter.parameters.MaxAdapterParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
+import com.applovin.mediation.adapters.google.BuildConfig;
 import com.applovin.mediation.nativeAds.MaxNativeAd;
 import com.applovin.mediation.nativeAds.MaxNativeAdView;
 import com.applovin.sdk.AppLovinSdk;
@@ -81,6 +77,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThread;
 
 /**
  * This is a mediation adapterWrapper for Google Play Services
@@ -172,7 +173,7 @@ public class GoogleMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-        return "21.5.0.0";
+        return BuildConfig.VERSION_NAME;
     }
 
     @Override
@@ -939,8 +940,7 @@ public class GoogleMediationAdapter
         // Overwritten by `mute_state` setting, unless `mute_state` is disabled
         if ( serverParameters.containsKey( "is_muted" ) ) // Introduced in 9.10.0
         {
-			// astar customization: comment this out, we set the value ourselves.
-            //MobileAds.setAppMuted( serverParameters.getBoolean( "is_muted" ) );
+            MobileAds.setAppMuted( serverParameters.getBoolean( "is_muted" ) );
         }
     }
 
