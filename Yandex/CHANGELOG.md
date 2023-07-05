@@ -1,5 +1,19 @@
 # Changelog
 
+## 5.9.0.0
+* Certified with Yandex SDK 5.9.0.
+
+## 5.8.0.0
+* Certified with Yandex SDK 5.8.0.
+* Remove the `getPrivacySetting()` function and call privacy methods directly.
+* Now requires MAX SDK version 9.14.0 or higher.
+
+## 5.7.0.0
+* Certified with Yandex SDK 5.7.0.
+
+## 5.6.0.0
+* Certified with Yandex SDK 5.6.0.
+
 ## 5.4.1.1
 * Remove `consentDialogState` guard.
 

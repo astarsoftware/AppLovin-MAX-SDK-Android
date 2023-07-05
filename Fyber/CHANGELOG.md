@@ -1,5 +1,19 @@
 # Changelog
 
+## 8.2.3.3
+* Fix to call `InneractiveAdManager.setMediationName()` and `InneractiveAdManager.setMediationVersion()` before initialization.
+
+## 8.2.3.2
+* Call `InneractiveAdManager.setMediationName()` and `InneractiveAdManager.setMediationVersion()` statically at the time of signal collection.
+
+## 8.2.3.1
+* Call `InneractiveAdManager.currentAudienceAppliesToCoppa()` after SDK initialization.
+* Remove the `getPrivacySetting()` function and call privacy methods directly.
+* Now requires MAX SDK version 9.14.0 or higher.
+
+## 8.2.3.0
+* Certified with Fyber SDK 8.2.3.
+
 ## 8.2.2.0
 * Certified with Fyber SDK 8.2.2.
 

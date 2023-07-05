@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.2.0.1
+* Updated `BidMachine.getBidToken()` usage.
+
+## 2.2.0.0
+* Certified with BidMachine SDK 2.2.0.
+
+## 2.1.13.0
+* Certified with BidMachine SDK 2.1.13.
+
+## 2.1.12.0
+* Certified with BidMachine SDK 2.1.12.
+
+## 2.1.11.0
+* Certified with BidMachine SDK 2.1.11.
+
+## 2.1.10.0
+* Certified with BidMachine SDK 2.1.10.
+
+## 2.1.9.0
+* Certified with BidMachine SDK 2.1.9.
+
 ## 2.1.8.0
 * Certified with BidMachine SDK 2.1.8.
 
@@ -56,3 +77,4 @@
 
 ## 1.9.3.0
 * Initial commit.
+* Minimum AppLovin MAX SDK version 11.4.0.

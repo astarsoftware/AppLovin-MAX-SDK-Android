@@ -1,5 +1,40 @@
 # Changelog
 
+## 5.2.0.7.0
+* Certified with ByteDance SDK 5.2.0.7.
+
+## 5.2.0.6.0
+* Certified with ByteDance SDK 5.2.0.6.
+
+## 5.2.0.5.0
+* Certified with ByteDance SDK 5.2.0.5.
+
+## 5.1.1.1.0
+* Certified with ByteDance SDK 5.1.1.1.
+
+## 5.1.1.0.0
+* Certified with ByteDance SDK 5.1.1.0.
+* Remove the `getPrivacySetting()` function and call privacy methods directly.
+* Now requires MAX SDK version 9.14.0 or higher.
+
+## 5.1.0.8.0
+* Certified with ByteDance SDK 5.1.0.8.
+
+## 5.1.0.7.0
+* Certified with ByteDance SDK 5.1.0.7.
+
+## 5.1.0.6.0
+* Certified with ByteDance SDK 5.1.0.6.
+
+## 5.0.1.1.0
+* Certified with ByteDance SDK 5.0.1.1.
+
+## 5.0.0.9.0
+* Certified with ByteDance SDK 5.0.0.9.
+
+## 5.0.0.8.0
+* Certified with ByteDance SDK 5.0.0.8.
+
 ## 5.0.0.6.0
 * Certified with ByteDance SDK 5.0.0.6.
 

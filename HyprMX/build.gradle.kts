@@ -4,8 +4,8 @@ plugins {
 }
 
 private val versionMajor = 6
-private val versionMinor = 0
-private val versionPatch = 3
+private val versionMinor = 2
+private val versionPatch = 0
 private val versionAdapterPatch = 1
 
 val libraryVersionName by extra("${versionMajor}.${versionMinor}.${versionPatch}.${versionAdapterPatch}")
@@ -21,6 +21,7 @@ android.defaultConfig.versionName = libraryVersionName
 
 dependencies {
     implementation("com.hyprmx.android:HyprMX-SDK:${libraryVersions["hyprmx"]}")
+    implementation("com.google.android.gms:play-services-ads-identifier:${libraryVersions["playServicesIdentifier"]}")
 }
 
 publishing {

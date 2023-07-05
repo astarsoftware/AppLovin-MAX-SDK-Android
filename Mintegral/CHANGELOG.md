@@ -1,5 +1,52 @@
 # Changelog
 
+## 16.4.71.0
+* Certified with Mintegral SDK 16.4.71.
+
+## 16.4.61.0
+* Certified with Mintegral SDK 16.4.61.
+
+## 16.4.51.0
+* Certified with Mintegral SDK 16.4.51.
+
+## 16.4.41.1
+* Fix native ads memory leak by calling `MBMediaView.destory()`.
+
+## 16.4.41.0
+* Certified with Mintegral SDK 16.4.41.
+
+## 16.4.31.2
+* Update call to `setDoNotTrackStatus(...)` to pass in context.
+* Remove the `getPrivacySetting()` function and call privacy methods directly.
+* Now requires MAX SDK version 9.14.0 or higher.
+
+## 16.4.31.1
+* Fix NPE that occurs when `mbBidNativeHandler` or `mbBidNativeAdViewHandler` is `null` on native or native ad view ad loads.
+
+## 16.4.31.0
+* Certified with Mintegral SDK 16.4.31.
+
+## 16.4.21.0
+* Certified with Mintegral SDK 16.4.21.
+
+## 16.4.11.1
+* Pass in extra data for signal collection.
+
+## 16.4.11.0
+* Certified with Mintegral SDK 16.4.11.
+
+## 16.3.91.1
+* Pass in extra data for signal collection.
+
+## 16.3.91.0
+* Certified with Mintegral SDK 16.3.91.
+
+## 16.3.81.0
+* Certified with Mintegral SDK 16.3.81.
+
+## 16.3.71.0
+* Certified with Mintegral SDK 16.3.71.
+
 ## 16.3.61.0
 * Certified with Mintegral SDK 16.3.61.
 

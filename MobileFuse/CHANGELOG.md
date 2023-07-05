@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.5.2.0
+* Certified with MobileFuse SDK 1.5.2.
+
+## 1.5.1.0
+* Certified with MobileFuse SDK 1.5.1.
+
+## 1.5.0.0
+* Certified with MobileFuse SDK 1.5.0.
+
+## 1.4.5.0
+* Certified with MobileFuse SDK 1.4.5.
+
+## 1.4.4.0
+* Certified with MobileFuse SDK 1.4.4.
+
+## 1.4.3.0
+* Certified with MobileFuse SDK 1.4.3.
+
+## 1.4.2.1
+* Add support for interstitial, rewarded, native and native ad view ads.
+
 ## 1.4.2.0
 * Certified with MobileFuse SDK 1.4.2.
 
@@ -21,3 +42,4 @@
 
 ## 1.3.0.0
 * Initial commit.
+* Minimum AppLovin MAX SDK version 11.5.3.

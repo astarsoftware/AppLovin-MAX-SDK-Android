@@ -22,7 +22,6 @@ import com.applovin.mediation.adapter.listeners.MaxNativeAdAdapterListener;
 import com.applovin.mediation.adapter.listeners.MaxRewardedAdapterListener;
 import com.applovin.mediation.adapter.listeners.MaxSignalCollectionListener;
 import com.applovin.mediation.adapter.parameters.MaxAdapterInitializationParameters;
-import com.applovin.mediation.adapter.parameters.MaxAdapterParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
 import com.applovin.mediation.adapters.mintegral.BuildConfig;
@@ -35,6 +34,7 @@ import com.mbridge.msdk.MBridgeSDK;
 import com.mbridge.msdk.interstitialvideo.out.InterstitialVideoListener;
 import com.mbridge.msdk.interstitialvideo.out.MBBidInterstitialVideoHandler;
 import com.mbridge.msdk.interstitialvideo.out.MBInterstitialVideoHandler;
+import com.mbridge.msdk.mbbid.out.BidConstants;
 import com.mbridge.msdk.mbbid.out.BidManager;
 import com.mbridge.msdk.nativex.view.MBMediaView;
 import com.mbridge.msdk.out.BannerAdListener;
@@ -54,7 +54,6 @@ import com.mbridge.msdk.out.RewardInfo;
 import com.mbridge.msdk.out.RewardVideoListener;
 import com.mbridge.msdk.widget.MBAdChoice;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -127,6 +126,7 @@ public class MintegralMediationAdapter
     private MBBidNativeHandler            mbBidNativeAdViewHandler;
     private Campaign                      nativeAdCampaign;
     private ViewGroup                     nativeAdContainer;
+    private MaxNativeAd                   nativeAd;
     private List<View>                    clickableViews;
 
     static
@@ -153,7 +153,7 @@ public class MintegralMediationAdapter
             final Context context = getContext( activity );
 
             // Communicated over email, GDPR status can only be set before SDK initialization
-            Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
+            Boolean hasUserConsent = parameters.hasUserConsent();
             if ( hasUserConsent != null )
             {
                 int consent = hasUserConsent ? MBridgeConstans.IS_SWITCH_ON : MBridgeConstans.IS_SWITCH_OFF;
@@ -162,24 +162,21 @@ public class MintegralMediationAdapter
             }
 
             // Has to be _before_ their SDK init as well
-            if ( AppLovinSdk.VERSION_CODE >= 91100 )
+            Boolean isDoNotSell = parameters.isDoNotSell();
+            if ( isDoNotSell != null && isDoNotSell )
             {
-                Boolean isDoNotSell = getPrivacySetting( "isDoNotSell", parameters );
-                if ( isDoNotSell != null && isDoNotSell )
-                {
-                    mBridgeSDK.setDoNotTrackStatus( true );
-                }
+                mBridgeSDK.setDoNotTrackStatus( context, true );
             }
 
             // Has to be _before_ their SDK init as well
-            Boolean isAgeRestrictedUser = getPrivacySetting( "isAgeRestrictedUser", parameters );
+            Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
             if ( isAgeRestrictedUser != null )
             {
                 mBridgeSDK.setCoppaStatus( context, isAgeRestrictedUser );
             }
 
             // Mintegral Docs - "It is recommended to use the API in the main thread"
-            final Map<String, String> map = mBridgeSDK.getMBConfigurationMap( appId, appKey );
+            Map<String, String> map = mBridgeSDK.getMBConfigurationMap( appId, appKey );
             mBridgeSDK.init( map, context );
         }
 
@@ -253,6 +250,16 @@ public class MintegralMediationAdapter
             mbBidNativeAdViewHandler = null;
         }
 
+        if ( nativeAd != null )
+        {
+            if ( nativeAd.getMediaView() instanceof MBMediaView )
+            {
+                ( (MBMediaView) nativeAd.getMediaView() ).destory();
+            }
+
+            nativeAd = null;
+        }
+
         nativeAdCampaign = null;
 
         router.removeAdapter( this, mbUnitId );
@@ -263,7 +270,26 @@ public class MintegralMediationAdapter
     {
         log( "Collecting signal..." );
 
-        final String signal = BidManager.getBuyerUid( getContext( activity ) );
+        String adUnitId = parameters.getAdUnitId();
+        String signal;
+
+        if ( AppLovinSdkUtils.isValidString( adUnitId ) )
+        {
+            Bundle credentials = BundleUtils.getBundle( "credentials", Bundle.EMPTY, parameters.getServerParameters() );
+            Bundle adUnitCredentials = BundleUtils.getBundle( adUnitId, Bundle.EMPTY, credentials );
+
+            Map<String, String> info = new HashMap<>( 3 );
+            info.put( BidConstants.BID_FILTER_KEY_PLACEMENT_ID, BundleUtils.getString( "placement_id", "", adUnitCredentials ) );
+            info.put( BidConstants.BID_FILTER_KEY_UNIT_ID, BundleUtils.getString( "ad_unit_id", "", adUnitCredentials ) );
+            info.put( BidConstants.BID_FILTER_KEY_AD_TYPE, toMintegralAdType( parameters.getAdFormat() ) );
+
+            signal = BidManager.getBuyerUid( getContext( activity ), info );
+        }
+        else
+        {
+            signal = BidManager.getBuyerUid( getContext( activity ) );
+        }
+
         callback.onSignalCollected( signal );
     }
 
@@ -603,22 +629,6 @@ public class MintegralMediationAdapter
         mbBidNativeHandler.bidLoad( parameters.getBidResponse() );
     }
 
-    private Boolean getPrivacySetting(final String privacySetting, final MaxAdapterParameters parameters)
-    {
-        try
-        {
-            // Use reflection because compiled adapters have trouble fetching `boolean` from old SDKs and `Boolean` from new SDKs (above 9.14.0)
-            Class<?> parametersClass = parameters.getClass();
-            Method privacyMethod = parametersClass.getMethod( privacySetting );
-            return (Boolean) privacyMethod.invoke( parameters );
-        }
-        catch ( Exception exception )
-        {
-            log( "Error getting privacy setting " + privacySetting + " with exception: ", exception );
-            return ( AppLovinSdk.VERSION_CODE >= 9140000 ) ? null : false;
-        }
-    }
-
     private MaxNativeAdView createMaxNativeAdViewWithNativeAd(final MaxNativeAd maxNativeAd, final String templateName, final Context context)
     {
         if ( templateName.contains( "vertical" ) )
@@ -662,6 +672,32 @@ public class MintegralMediationAdapter
         {
             return executor;
         }
+    }
+
+    private static String toMintegralAdType(final MaxAdFormat adFormat)
+    {
+        if ( adFormat == MaxAdFormat.INTERSTITIAL )
+        {
+            return BidConstants.BID_FILTER_VALUE_AD_TYPE_INTERSTITIAL_VIDEO;
+        }
+        else if ( adFormat == MaxAdFormat.REWARDED )
+        {
+            return BidConstants.BID_FILTER_VALUE_AD_TYPE_REWARD_VIDEO;
+        }
+        else if ( adFormat == MaxAdFormat.APP_OPEN )
+        {
+            return BidConstants.BID_FILTER_VALUE_AD_TYPE_SPLASH;
+        }
+        else if ( adFormat == MaxAdFormat.BANNER || adFormat == MaxAdFormat.LEADER || adFormat == MaxAdFormat.MREC )
+        {
+            return BidConstants.BID_FILTER_VALUE_AD_TYPE_BANNER;
+        }
+        else if ( adFormat == MaxAdFormat.NATIVE )
+        {
+            return BidConstants.BID_FILTER_VALUE_AD_TYPE_NATIVE;
+        }
+
+        return "-1";
     }
 
     private static MaxAdapterError toMaxError(final String mintegralError)
@@ -730,12 +766,12 @@ public class MintegralMediationAdapter
     {
         if ( AppLovinSdk.VERSION_CODE < 11_05_03_00 )
         {
-            List<View> clickableViews = new ArrayList<View>( 5 );
+            final List<View> clickableViews = new ArrayList<>( 5 );
             if ( maxNativeAdView.getTitleTextView() != null ) clickableViews.add( maxNativeAdView.getTitleTextView() );
             if ( maxNativeAdView.getAdvertiserTextView() != null ) clickableViews.add( maxNativeAdView.getAdvertiserTextView() );
             if ( maxNativeAdView.getBodyTextView() != null ) clickableViews.add( maxNativeAdView.getBodyTextView() );
-            if ( maxNativeAdView.getIconImageView() != null ) clickableViews.add( maxNativeAdView.getIconImageView() );
             if ( maxNativeAdView.getCallToActionButton() != null ) clickableViews.add( maxNativeAdView.getCallToActionButton() );
+            if ( maxNativeAdView.getIconImageView() != null ) clickableViews.add( maxNativeAdView.getIconImageView() );
 
             return clickableViews;
         }
@@ -1061,15 +1097,15 @@ public class MintegralMediationAdapter
                                     .setBody( campaign.getAppDesc() )
                                     .setCallToAction( campaign.getAdCall() )
                                     .setIcon( finalIconImage )
-                                    .setMediaView( mediaView )
-                                    .setOptionsView( adChoiceView );
+                                    .setOptionsView( adChoiceView )
+                                    .setMediaView( mediaView );
 
-                            final MaxMintegralNativeAd maxMintegralNativeAd = new MaxMintegralNativeAd( builder );
+                            nativeAd = new MaxMintegralNativeAd( builder );
 
                             final String templateName = BundleUtils.getString( "template", "", serverParameters );
-                            MaxNativeAdView maxNativeAdView = createMaxNativeAdViewWithNativeAd( maxMintegralNativeAd, templateName, context );
+                            MaxNativeAdView maxNativeAdView = createMaxNativeAdViewWithNativeAd( nativeAd, templateName, context );
 
-                            maxMintegralNativeAd.prepareForInteraction( getClickableViews( maxNativeAdView ), maxNativeAdView );
+                            nativeAd.prepareForInteraction( getClickableViews( maxNativeAdView ), maxNativeAdView );
                             listener.onAdViewAdLoaded( maxNativeAdView );
                         }
                     } );
@@ -1332,8 +1368,8 @@ public class MintegralMediationAdapter
                                     .setBody( campaign.getAppDesc() )
                                     .setCallToAction( campaign.getAdCall() )
                                     .setIcon( finalIconImage )
-                                    .setMediaView( mediaView )
-                                    .setOptionsView( adChoiceView );
+                                    .setOptionsView( adChoiceView )
+                                    .setMediaView( mediaView );
                             if ( AppLovinSdk.VERSION_CODE >= 11_04_03_99 )
                             {
                                 builder.setMainImage( mainImage );
@@ -1345,8 +1381,8 @@ public class MintegralMediationAdapter
                                 builder.setStarRating( campaign.getRating() );
                             }
 
-                            final MaxNativeAd maxNativeAd = new MaxMintegralNativeAd( builder );
-                            listener.onNativeAdLoaded( maxNativeAd, null );
+                            nativeAd = new MaxMintegralNativeAd( builder );
+                            listener.onNativeAdLoaded( nativeAd, null );
                         }
                     } );
                 }
@@ -1381,11 +1417,25 @@ public class MintegralMediationAdapter
 
             if ( getFormat() == MaxAdFormat.NATIVE )
             {
-                mbBidNativeHandler.registerView( container, clickableViews, nativeAdCampaign );
+                if ( mbBidNativeHandler != null )
+                {
+                    mbBidNativeHandler.registerView( container, clickableViews, nativeAdCampaign );
+                }
+                else
+                {
+                    e( "Failed to register native ad views: mbBidNativeHandler is null." );
+                }
             }
             else
             {
-                mbBidNativeAdViewHandler.registerView( container, clickableViews, nativeAdCampaign );
+                if ( mbBidNativeAdViewHandler != null )
+                {
+                    mbBidNativeAdViewHandler.registerView( container, clickableViews, nativeAdCampaign );
+                }
+                else
+                {
+                    e( "Failed to register native ad views: mbBidNativeAdViewHandler is null." );
+                }
             }
 
             MintegralMediationAdapter.this.nativeAdContainer = container;

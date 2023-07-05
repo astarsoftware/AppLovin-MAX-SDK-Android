@@ -1,5 +1,28 @@
 # Changelog
 
+## 10.1.4.1
+* Add a temporary workaround for the issue where `onAdImpression()` is called before `onAdLoadSucceeded().`
+
+## 10.1.4.0
+* Certified with InMobi SDK 10.1.4.
+* Remove the `getPrivacySetting()` function and call privacy methods directly.
+* Now requires MAX SDK version 9.14.0 or higher.
+
+## 10.1.3.4
+* Initialize InMobi SDK on UI thread to avoid crash: `IllegalStateException: Calling View methods on another thread than the UI thread`.
+
+## 10.1.3.3
+* Fix `ClassCastException` that occurs when the parent view of `mediaView` is not of type `FrameLayout` for native ads.
+
+## 10.1.3.2
+* Certified with InMobi SDK 10.1.3.
+
+## 10.1.3.1
+* Downgrade to InMobi SDK 10.1.2 to avoid crash: `IllegalStateException: Calling View methods on another thread than the UI thread`.
+
+## 10.1.3.0
+* Certified with InMobi SDK 10.1.3.
+
 ## 10.1.2.4
 * Remove `consentDialogState` guard.
 

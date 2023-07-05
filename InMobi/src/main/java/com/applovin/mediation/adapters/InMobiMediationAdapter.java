@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.Display;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -36,7 +37,6 @@ import com.applovin.mediation.adapters.inmobi.BuildConfig;
 import com.applovin.mediation.nativeAds.MaxNativeAd;
 import com.applovin.mediation.nativeAds.MaxNativeAdView;
 import com.applovin.sdk.AppLovinSdk;
-import com.applovin.sdk.AppLovinSdkConfiguration;
 import com.applovin.sdk.AppLovinSdkUtils;
 import com.inmobi.ads.AdMetaInfo;
 import com.inmobi.ads.InMobiAdRequestStatus;
@@ -53,7 +53,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.lang.ref.WeakReference;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -116,6 +115,13 @@ public class InMobiMediationAdapter
         callback.onSignalCollected( signal );
     }
 
+    // @Override
+    public Boolean shouldInitializeOnUiThread()
+    {
+        // InMobi requires SDK to be initialized on UI thread.
+        return true;
+    }
+
     @Override
     public void onDestroy()
     {
@@ -143,34 +149,44 @@ public class InMobiMediationAdapter
             final String accountId = parameters.getServerParameters().getString( "account_id" );
             log( "Initializing InMobi SDK with account id: " + accountId + "..." );
 
-            Context context = getContext( activity );
+            final Context context = getContext( activity );
 
             status = InitializationStatus.INITIALIZING;
 
             updateAgeRestrictedUser( parameters );
 
-            JSONObject consentObject = getConsentJSONObject( parameters );
-            InMobiSdk.init( context, accountId, consentObject, new SdkInitializationListener()
+            final JSONObject consentObject = getConsentJSONObject( parameters );
+
+            Runnable initializeSdkRunnable = new Runnable()
             {
                 @Override
-                public void onInitializationComplete(@Nullable final Error error)
+                public void run()
                 {
-                    if ( error != null )
+                    InMobiSdk.init( context, accountId, consentObject, new SdkInitializationListener()
                     {
-                        log( "InMobi SDK initialization failed with error: " + error.getMessage() );
+                        @Override
+                        public void onInitializationComplete(@Nullable final Error error)
+                        {
+                            if ( error != null )
+                            {
+                                log( "InMobi SDK initialization failed with error: " + error.getMessage() );
 
-                        status = InitializationStatus.INITIALIZED_FAILURE;
-                        onCompletionListener.onCompletion( status, error.getMessage() );
-                    }
-                    else
-                    {
-                        log( "InMobi SDK successfully initialized." );
+                                status = InitializationStatus.INITIALIZED_FAILURE;
+                                onCompletionListener.onCompletion( status, error.getMessage() );
+                            }
+                            else
+                            {
+                                log( "InMobi SDK successfully initialized." );
 
-                        status = InitializationStatus.INITIALIZED_SUCCESS;
-                        onCompletionListener.onCompletion( status, null );
-                    }
+                                status = InitializationStatus.INITIALIZED_SUCCESS;
+                                onCompletionListener.onCompletion( status, null );
+                            }
+                        }
+                    } );
                 }
-            } );
+            };
+
+            initializeSdkOnUiThread( initializeSdkRunnable );
 
             InMobiSdk.LogLevel logLevel = parameters.isTesting() ? InMobiSdk.LogLevel.DEBUG : InMobiSdk.LogLevel.ERROR;
             InMobiSdk.setLogLevel( logLevel );
@@ -412,6 +428,19 @@ public class InMobiMediationAdapter
 
     //region Helper Methods
 
+    private void initializeSdkOnUiThread(final Runnable initializeRunnable)
+    {
+        if ( AppLovinSdk.VERSION_CODE >= 11_09_00_00 )
+        {
+            // The `shouldInitializeOnUiThread` setting is added in SDK version 11.9.0. So, the SDK should already be running this on UI thread.
+            initializeRunnable.run();
+        }
+        else
+        {
+            AppLovinSdkUtils.runOnUiThread( initializeRunnable );
+        }
+    }
+
     private InMobiInterstitial createFullscreenAd(long placementId, MaxAdapterResponseParameters parameters, InterstitialAdEventListener listener, Activity activity)
     {
         InMobiInterstitial interstitial = new InMobiInterstitial( activity, placementId, listener );
@@ -442,7 +471,7 @@ public class InMobiMediationAdapter
 
         try
         {
-            Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
+            Boolean hasUserConsent = parameters.hasUserConsent();
             if ( hasUserConsent != null )
             {
                 consentObject.put( KEY_PARTNER_GDPR_CONSENT, hasUserConsent );
@@ -459,7 +488,7 @@ public class InMobiMediationAdapter
     private void updateAgeRestrictedUser(final MaxAdapterParameters parameters)
     {
         // NOTE: Only for family apps and not related to COPPA
-        Boolean isAgeRestrictedUser = getPrivacySetting( "isAgeRestrictedUser", parameters );
+        Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
         if ( isAgeRestrictedUser != null )
         {
             InMobiSdk.setIsAgeRestricted( isAgeRestrictedUser );
@@ -478,38 +507,19 @@ public class InMobiMediationAdapter
         extras.put( "tp", "c_applovin" );
         extras.put( "tp-ver", AppLovinSdk.VERSION );
 
-        Boolean isAgeRestrictedUser = getPrivacySetting( "isAgeRestrictedUser", parameters );
+        Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
         if ( isAgeRestrictedUser != null )
         {
             extras.put( "coppa", isAgeRestrictedUser ? "1" : "0" );
         }
 
-        if ( AppLovinSdk.VERSION_CODE >= 9_11_00 )
+        Boolean isDoNotSell = parameters.isDoNotSell();
+        if ( isDoNotSell != null )
         {
-            Boolean isDoNotSell = getPrivacySetting( "isDoNotSell", parameters );
-            if ( isDoNotSell != null )
-            {
-                extras.put( "do_not_sell", isDoNotSell ? "1" : "0" );
-            }
+            extras.put( "do_not_sell", isDoNotSell ? "1" : "0" );
         }
 
         return extras;
-    }
-
-    private Boolean getPrivacySetting(final String privacySetting, final MaxAdapterParameters parameters)
-    {
-        try
-        {
-            // Use reflection because compiled adapters have trouble fetching `boolean` from old SDKs and `Boolean` from new SDKs (above 9.14.0)
-            Class<?> parametersClass = parameters.getClass();
-            Method privacyMethod = parametersClass.getMethod( privacySetting );
-            return (Boolean) privacyMethod.invoke( parameters );
-        }
-        catch ( Exception exception )
-        {
-            log( "Error getting privacy setting " + privacySetting + " with exception: ", exception );
-            return ( AppLovinSdk.VERSION_CODE >= 9140000 ) ? null : false;
-        }
     }
 
     private Drawable fetchNativeAdIcon(@NonNull final String iconUrl, final Bundle serverParameters, final Context context)
@@ -604,12 +614,12 @@ public class InMobiMediationAdapter
     {
         if ( AppLovinSdk.VERSION_CODE < 11_05_03_00 )
         {
-            List<View> clickableViews = new ArrayList<View>( 5 );
+            final List<View> clickableViews = new ArrayList<>( 5 );
             if ( maxNativeAdView.getTitleTextView() != null ) clickableViews.add( maxNativeAdView.getTitleTextView() );
             if ( maxNativeAdView.getAdvertiserTextView() != null ) clickableViews.add( maxNativeAdView.getAdvertiserTextView() );
             if ( maxNativeAdView.getBodyTextView() != null ) clickableViews.add( maxNativeAdView.getBodyTextView() );
-            if ( maxNativeAdView.getIconImageView() != null ) clickableViews.add( maxNativeAdView.getIconImageView() );
             if ( maxNativeAdView.getCallToActionButton() != null ) clickableViews.add( maxNativeAdView.getCallToActionButton() );
+            if ( maxNativeAdView.getIconImageView() != null ) clickableViews.add( maxNativeAdView.getIconImageView() );
 
             return clickableViews;
         }
@@ -625,6 +635,9 @@ public class InMobiMediationAdapter
             extends BannerAdEventListener
     {
         final MaxAdViewAdapterListener listener;
+
+        private boolean onAdLoadSucceededCalled;
+        private boolean onAdImpressionCalled;
 
         AdViewListener(MaxAdViewAdapterListener listener)
         {
@@ -648,6 +661,13 @@ public class InMobiMediationAdapter
             {
                 listener.onAdViewAdLoaded( inMobiBanner );
             }
+
+            // Temporary workaround for an issue where onAdImpression is called before onAdLoadSucceeded.
+            if ( onAdImpressionCalled )
+            {
+                listener.onAdViewAdDisplayed();
+            }
+            onAdLoadSucceededCalled = true;
         }
 
         @Override
@@ -670,7 +690,11 @@ public class InMobiMediationAdapter
         public void onAdImpression(@NonNull final InMobiBanner inMobiBanner)
         {
             log( "AdView impression tracked" );
-            listener.onAdViewAdDisplayed();
+            if ( onAdLoadSucceededCalled )
+            {
+                listener.onAdViewAdDisplayed();
+            }
+            onAdImpressionCalled = true;
         }
 
         @Override
@@ -963,9 +987,9 @@ public class InMobiMediationAdapter
                                     .setAdFormat( adFormat )
                                     .setTitle( inMobiNative.getAdTitle() )
                                     .setBody( inMobiNative.getAdDescription() )
-                                    .setMediaView( frameLayout )
+                                    .setCallToAction( inMobiNative.getAdCtaText() )
                                     .setIcon( new MaxNativeAd.MaxNativeAdImage( iconDrawable ) )
-                                    .setCallToAction( inMobiNative.getAdCtaText() );
+                                    .setMediaView( frameLayout );
 
                             final MaxInMobiNativeAd maxInMobiNativeAd = new MaxInMobiNativeAd( listener, builder, adFormat );
 
@@ -1144,9 +1168,9 @@ public class InMobiMediationAdapter
                             .setAdFormat( MaxAdFormat.NATIVE )
                             .setTitle( inMobiNative.getAdTitle() )
                             .setBody( inMobiNative.getAdDescription() )
-                            .setMediaView( frameLayout )
+                            .setCallToAction( inMobiNative.getAdCtaText() )
                             .setIcon( new MaxNativeAd.MaxNativeAdImage( iconDrawable ) )
-                            .setCallToAction( inMobiNative.getAdCtaText() );
+                            .setMediaView( frameLayout );
 
                     if ( AppLovinSdk.VERSION_CODE >= 11_07_00_00 )
                     {
@@ -1253,11 +1277,8 @@ public class InMobiMediationAdapter
                 return false;
             }
 
-            // We don't provide the aspect ratio for InMobi's media view since the media view is rendered after the ad is rendered
+            // We don't provide the aspect ratio for InMobi's media view since the media view is rendered after the ad is rendered.
             final FrameLayout mediaView = (FrameLayout) getMediaView();
-            final FrameLayout.LayoutParams params = new FrameLayout.LayoutParams( FrameLayout.LayoutParams.MATCH_PARENT,
-                                                                                  FrameLayout.LayoutParams.MATCH_PARENT );
-            mediaView.setLayoutParams( params );
             mediaView.post( new Runnable()
             {
                 @Override
@@ -1265,22 +1286,24 @@ public class InMobiMediationAdapter
                 {
                     int primaryViewWidth = mediaView.getWidth();
 
-                    // NOTE: InMobi's SDK returns primary view with a height that does not fit a banner, so scale media smaller specifically for horizontal banners (and not leaders/MRECs)
-                    if ( format == MaxAdFormat.BANNER && mediaView.getWidth() > mediaView.getHeight() )
+                    final boolean isHorizontalBanner = ( format == MaxAdFormat.BANNER ) && ( mediaView.getWidth() > mediaView.getHeight() );
+
+                    // For horizontal banners before AppLovin SDK version 11.6.0, scale primary view appropriately.
+                    if ( AppLovinSdk.VERSION_CODE < 11_06_00_00 && isHorizontalBanner )
                     {
                         primaryViewWidth = (int) ( mediaView.getHeight() * ( 16.0 / 9.0 ) );
-                        // FrameLayout don't have gravity layout param, and layout_gravity not supported programmatically
-                        // We need to calculate left margin to center the primaryView in our mediaView (horizontal banner only)
-                        params.leftMargin = ( mediaView.getWidth() - primaryViewWidth ) / 2;
-                        mediaView.setLayoutParams( params );
                     }
-                    final View primaryView = nativeAd.getPrimaryViewOfWidth( mediaView.getContext(),
-                                                                             null,
-                                                                             mediaView,
-                                                                             primaryViewWidth );
+
+                    final View primaryView = nativeAd.getPrimaryViewOfWidth( mediaView.getContext(), null, mediaView, primaryViewWidth );
                     if ( primaryView == null ) return;
 
                     mediaView.addView( primaryView );
+
+                    // For horizontal banners before AppLovin SDK version 11.6.0, center primary view.
+                    if ( AppLovinSdk.VERSION_CODE < 11_06_00_00 && isHorizontalBanner )
+                    {
+                        ( (FrameLayout.LayoutParams) primaryView.getLayoutParams() ).gravity = Gravity.CENTER;
+                    }
                 }
             } );
 
@@ -1307,7 +1330,7 @@ public class InMobiMediationAdapter
                 }
             };
 
-            // InMobi does not provide a method to bind views with landing url, so we need to do it manually
+            // InMobi does not provide a method to bind views with landing url, so we need to do it manually.
             for ( View clickableView : clickableViews )
             {
                 if ( clickableView != null ) clickableView.setOnClickListener( clickListener );

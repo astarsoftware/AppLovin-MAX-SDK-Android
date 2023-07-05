@@ -1,5 +1,35 @@
 # Changelog
 
+## 22.1.0.3
+* Update CCPA state if granted mid-session.
+
+## 22.1.0.2
+* Fix `int java.lang.Integer.intValue()` NPE for native ads.
+
+## 22.1.0.1
+* Support for native ads in external plugins (e.g. React Native).
+
+## 22.1.0.0
+* Certified with GoogleAdManager SDK 22.1.0.
+* Remove the `getPrivacySetting()` function and call privacy methods directly.
+* Now requires MAX SDK version 9.14.0 or higher.
+
+## 22.0.0.2
+* Re-certified with GoogleAdManager SDK 22.0.0.
+* Remove client-side setting of test device ids.
+
+## 22.0.0.1
+* Downgrade to GoogleAdManager SDK 21.5.0 due to crashes with Fyber SDK 8.2.2.
+
+## 22.0.0.0
+* Certified with GoogleAdManager SDK 22.0.0.
+
+## 21.5.0.2
+* Fix potential NPE on custom adaptive banner width object.
+
+## 21.5.0.1
+* Add support for custom adaptive banner widths.
+
 ## 21.5.0.0
 * Certified with GoogleAdManager SDK 21.5.0.
 

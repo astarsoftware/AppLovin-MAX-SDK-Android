@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.8.0.0
+* Certified with UnityAds SDK 4.8.0.
+* Add the `onBannerShown()` callback.
+
+## 4.7.1.0
+* Certified with UnityAds SDK 4.7.1.
+* Remove the `getPrivacySetting()` function and call privacy methods directly.
+* Now requires MAX SDK version 9.14.0 or higher.
+
+## 4.6.1.0
+* Certified with UnityAds SDK 4.6.1.
+
+## 4.6.0.0
+* Certified with UnityAds SDK 4.6.0.
+
 ## 4.5.0.2
 * Include a random ID for every interstitial and rewarded ad request to improve fill and tracking.
 

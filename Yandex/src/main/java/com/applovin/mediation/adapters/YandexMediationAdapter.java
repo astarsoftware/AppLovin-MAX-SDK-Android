@@ -32,7 +32,6 @@ import com.applovin.mediation.adapters.yandex.BuildConfig;
 import com.applovin.mediation.nativeAds.MaxNativeAd;
 import com.applovin.mediation.nativeAds.MaxNativeAdView;
 import com.applovin.sdk.AppLovinSdk;
-import com.applovin.sdk.AppLovinSdkConfiguration;
 import com.applovin.sdk.AppLovinSdkUtils;
 import com.yandex.mobile.ads.banner.AdSize;
 import com.yandex.mobile.ads.banner.BannerAdEventListener;
@@ -60,7 +59,6 @@ import com.yandex.mobile.ads.rewarded.Reward;
 import com.yandex.mobile.ads.rewarded.RewardedAd;
 import com.yandex.mobile.ads.rewarded.RewardedAdEventListener;
 
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -103,6 +101,14 @@ public class YandexMediationAdapter
     public String getAdapterVersion()
     {
         return BuildConfig.VERSION_NAME;
+    }
+
+    // @Override
+    @Nullable
+    public Boolean shouldLoadAdsOnUiThread(final MaxAdFormat adFormat)
+    {
+        // Yandex requires all ad formats to be loaded on UI thread.
+        return true;
     }
 
     @Override
@@ -209,16 +215,24 @@ public class YandexMediationAdapter
     @Override
     public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
     {
-        String placementId = parameters.getThirdPartyAdPlacementId();
+        final String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + "interstitial ad for placement: " + placementId + "..." );
 
         updateUserConsent( parameters );
 
-        interstitialAd = new InterstitialAd( activity.getApplicationContext() );
-        interstitialAd.setAdUnitId( placementId );
-        interstitialAd.setInterstitialAdEventListener( new InterstitialAdListener( parameters, listener ) );
+        Runnable loadInterstitialAdRunnable = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                interstitialAd = new InterstitialAd( activity.getApplicationContext() );
+                interstitialAd.setAdUnitId( placementId );
+                interstitialAd.setInterstitialAdEventListener( new InterstitialAdListener( parameters, listener ) );
+                interstitialAd.loadAd( createAdRequest( parameters ) );
+            }
+        };
 
-        interstitialAd.loadAd( createAdRequest( parameters ) );
+        loadAdOnUiThread( loadInterstitialAdRunnable );
     }
 
     @Override
@@ -243,16 +257,24 @@ public class YandexMediationAdapter
     @Override
     public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
     {
-        String placementId = parameters.getThirdPartyAdPlacementId();
+        final String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + "rewarded ad for placement: " + placementId + "..." );
 
         updateUserConsent( parameters );
 
-        rewardedAd = new RewardedAd( activity.getApplicationContext() );
-        rewardedAd.setAdUnitId( placementId );
-        rewardedAd.setRewardedAdEventListener( new RewardedAdListener( parameters, listener ) );
+        Runnable loadRewardedAdRunnable = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                rewardedAd = new RewardedAd( activity.getApplicationContext() );
+                rewardedAd.setAdUnitId( placementId );
+                rewardedAd.setRewardedAdEventListener( new RewardedAdListener( parameters, listener ) );
+                rewardedAd.loadAd( createAdRequest( parameters ) );
+            }
+        };
 
-        rewardedAd.loadAd( createAdRequest( parameters ) );
+        loadAdOnUiThread( loadRewardedAdRunnable );
     }
 
     @Override
@@ -286,12 +308,20 @@ public class YandexMediationAdapter
 
         updateUserConsent( parameters );
 
-        adView = new BannerAdView( activity.getApplicationContext() );
-        adView.setAdUnitId( placementId );
-        adView.setAdSize( toAdSize( adFormat ) );
-        adView.setBannerAdEventListener( new AdViewListener( adFormatLabel, listener ) );
+        Runnable loadAdViewAdRunnable = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                adView = new BannerAdView( activity.getApplicationContext() );
+                adView.setAdUnitId( placementId );
+                adView.setAdSize( toAdSize( adFormat ) );
+                adView.setBannerAdEventListener( new AdViewListener( adFormatLabel, listener ) );
+                adView.loadAd( createAdRequest( parameters ) );
+            }
+        };
 
-        adView.loadAd( createAdRequest( parameters ) );
+        loadAdOnUiThread( loadAdViewAdRunnable );
     }
 
     //endregion
@@ -306,48 +336,52 @@ public class YandexMediationAdapter
         log( "Loading " + ( AppLovinSdkUtils.isValidString( bidResponse ) ? "bidding " : "" ) + "native ad for placement: " + placementId + "..." );
 
         // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
-        Context applicationContext = ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
+        final Context applicationContext = ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
 
         updateUserConsent( parameters );
 
-        NativeAdLoader nativeAdLoader = new NativeAdLoader( applicationContext );
-        nativeAdLoader.setNativeAdLoadListener( new NativeAdListener( parameters, applicationContext, listener ) );
+        Runnable loadNativeAdRunnable = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                NativeAdLoader nativeAdLoader = new NativeAdLoader( applicationContext );
+                nativeAdLoader.setNativeAdLoadListener( new NativeAdListener( parameters, applicationContext, listener ) );
+                NativeAdRequestConfiguration nativeAdRequestConfiguration = new NativeAdRequestConfiguration.Builder( placementId )
+                        .setBiddingData( bidResponse )
+                        .setParameters( adRequestParameters )
+                        .setShouldLoadImagesAutomatically( true ) // images will be loaded before ad is ready
+                        .build();
+                nativeAdLoader.loadAd( nativeAdRequestConfiguration );
+            }
+        };
 
-        final NativeAdRequestConfiguration nativeAdRequestConfiguration = new NativeAdRequestConfiguration.Builder( placementId )
-                .setBiddingData( bidResponse )
-                .setParameters( adRequestParameters )
-                .setShouldLoadImagesAutomatically( true ) // images will be loaded before ad is ready
-                .build();
-
-        nativeAdLoader.loadAd( nativeAdRequestConfiguration );
+        loadAdOnUiThread( loadNativeAdRunnable );
     }
 
     //endregion
 
     //region Helper Methods
 
-    private void updateUserConsent(final MaxAdapterParameters parameters)
+    private void loadAdOnUiThread(final Runnable loadOrShowRunnable)
     {
-        Boolean hasUserConsent = getPrivacySetting( "hasUserConsent", parameters );
-        if ( hasUserConsent != null )
+        if ( AppLovinSdk.VERSION_CODE >= 11_08_03_00 )
         {
-            MobileAds.setUserConsent( hasUserConsent );
+            // The `shouldLoadAdsOnUiThread` setting is added in SDK version 11.8.3. So, the SDK should already be running this on UI thread.
+            loadOrShowRunnable.run();
+        }
+        else
+        {
+            AppLovinSdkUtils.runOnUiThread( loadOrShowRunnable );
         }
     }
 
-    private Boolean getPrivacySetting(final String privacySetting, final MaxAdapterParameters parameters)
+    private void updateUserConsent(final MaxAdapterParameters parameters)
     {
-        try
+        Boolean hasUserConsent = parameters.hasUserConsent();
+        if ( hasUserConsent != null )
         {
-            // Use reflection because compiled adapters have trouble fetching `boolean` from old SDKs and `Boolean` from new SDKs (above 9.14.0)
-            Class<?> parametersClass = parameters.getClass();
-            Method privacyMethod = parametersClass.getMethod( privacySetting );
-            return (Boolean) privacyMethod.invoke( parameters );
-        }
-        catch ( Exception exception )
-        {
-            log( "Error getting privacy setting " + privacySetting + " with exception: ", exception );
-            return ( AppLovinSdk.VERSION_CODE >= 9140000 ) ? null : false;
+            MobileAds.setUserConsent( hasUserConsent );
         }
     }
 
@@ -697,13 +731,13 @@ public class YandexMediationAdapter
 
                     MaxNativeAd.Builder builder = new MaxNativeAd.Builder()
                             .setAdFormat( MaxAdFormat.NATIVE )
-                            .setIcon( new MaxNativeAd.MaxNativeAdImage( iconDrawable ) )
                             .setTitle( assets.getTitle() )
                             .setAdvertiser( assets.getDomain() )
                             .setBody( assets.getBody() )
-                            .setMediaView( new MediaView( applicationContext ) ) // Yandex requires rendering MediaView with their own bind method
+                            .setCallToAction( assets.getCallToAction() )
+                            .setIcon( new MaxNativeAd.MaxNativeAdImage( iconDrawable ) )
                             .setOptionsView( disclaimerSponsoredOptionsViewContainer )
-                            .setCallToAction( assets.getCallToAction() );
+                            .setMediaView( new MediaView( applicationContext ) ); // Yandex requires rendering MediaView with their own bind method
 
                     MaxNativeAd maxNativeAd = new MaxYandexNativeAd( builder );
 

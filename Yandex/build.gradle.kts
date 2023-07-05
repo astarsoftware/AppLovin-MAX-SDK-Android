@@ -4,9 +4,9 @@ plugins {
 }
 
 private val versionMajor = 5
-private val versionMinor = 4
-private val versionPatch = 1
-private val versionAdapterPatch = 1
+private val versionMinor = 9
+private val versionPatch = 0
+private val versionAdapterPatch = 0
 
 val libraryVersionName by extra("${versionMajor}.${versionMinor}.${versionPatch}.${versionAdapterPatch}")
 val libraryVersionCode by extra((versionMajor * 1000000) + (versionMinor * 10000) + (versionPatch * 100) + versionAdapterPatch)
@@ -18,9 +18,11 @@ var libraryVersions = rootProject.extra["versions"] as Map<*, *>
 
 android.defaultConfig.versionCode = libraryVersionCode
 android.defaultConfig.versionName = libraryVersionName
+// Ignore lint error that Yandex throws when incorrectly parsing their SDK version below.
+android.lintOptions.isAbortOnError = false
 
-// Suppress lint because Gradle does not detect the correct `yandexMobmetrica` version
-@kotlin.Suppress dependencies {
+// Suppress lint because Gradle does not detect the correct `yandexMobileAds` version
+@Suppress("MobileAdsSdkOutdatedVersion") dependencies {
     implementation("com.yandex.android:mobileads:${libraryVersions["yandexMobileAds"]}")
     implementation("com.yandex.android:mobmetricalib:${libraryVersions["yandexMobmetrica"]}")
 }

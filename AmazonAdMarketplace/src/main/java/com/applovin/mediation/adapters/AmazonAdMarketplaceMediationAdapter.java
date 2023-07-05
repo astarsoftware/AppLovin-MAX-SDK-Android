@@ -1,10 +1,15 @@
 package com.applovin.mediation.adapters;
 
+import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThreadDelayed;
+
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.amazon.device.ads.AdError;
 import com.amazon.device.ads.AdRegistration;
@@ -32,9 +37,7 @@ import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkUtils;
-import com.astarsoftware.android.ads.AdManagementUtil;
 import com.astarsoftware.android.ads.AdNetworkTracker;
-import com.astarsoftware.android.ads.R;
 import com.astarsoftware.dependencies.DependencyInjector;
 
 import java.util.Collections;
@@ -45,11 +48,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
-import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThreadDelayed;
 
 /**
  * Created by Thomas So on December 9 2021
@@ -111,7 +109,7 @@ public class AmazonAdMarketplaceMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-       return "9.6.2.3";
+       return "9.8.3.0";
     }
 
     @Override
@@ -499,7 +497,10 @@ public class AmazonAdMarketplaceMediationAdapter
 
     private String getMediationHintsCacheId(final String encodedBidId, final MaxAdFormat adFormat)
     {
-        return encodedBidId + "_" + adFormat.getLabel();
+        // Treat banners and leaders as the same ad format
+        String adFormatLabel = ( adFormat == MaxAdFormat.LEADER ) ? MaxAdFormat.BANNER.getLabel() : adFormat.getLabel();
+
+        return encodedBidId + "_" + adFormatLabel;
     }
 
     //endregion

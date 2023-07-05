@@ -1,5 +1,19 @@
 # Changelog
 
+## 13.1.1.0
+* Certified with Tapjoy SDK 13.1.1.
+
+## 13.1.0.0
+* Certified with Tapjoy SDK 13.1.0.
+* Remove the `getPrivacySetting()` function and call privacy methods directly.
+* Now requires MAX SDK version 9.14.0 or higher.
+
+## 13.0.1.0
+* Certified with Tapjoy SDK 13.0.1.
+
+## 13.0.0.0
+* Certified with Tapjoy SDK 13.0.0.
+
 ## 12.11.1.1
 * Remove `consentDialogState` guard.
 
