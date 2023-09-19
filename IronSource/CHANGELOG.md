@@ -1,5 +1,23 @@
 # Changelog
 
+## 7.5.1.0.1
+* Set `is_deviceid_optout` parameter for COPPA end users. 
+
+## 7.5.1.0.0
+* Certified with IronSource SDK 7.5.1.
+
+## 7.5.0.0.1
+* Remove activity lifecycle callbacks to prevent memory leak.
+
+## 7.5.0.0.0
+* Certified with IronSource SDK 7.5.0.
+
+## 7.4.0.0.1
+* Add support for bidding on banners/MRECs, interstitials, and rewarded ads.
+
+## 7.4.0.0.0
+* Certified with IronSource SDK 7.4.0.
+
 ## 7.3.1.1.0
 * Certified with IronSource SDK 7.3.1.1.
 

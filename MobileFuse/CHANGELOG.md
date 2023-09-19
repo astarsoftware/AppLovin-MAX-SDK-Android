@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.6.2.0
+* Certified with MobileFuse SDK 1.6.2.
+
+## 1.6.1.0
+* Certified with MobileFuse SDK 1.6.1.
+
+## 1.6.0.1
+* Initialize MobileFuse SDK using new API with initialization callbacks.
+
+## 1.6.0.0
+* Certified with MobileFuse SDK 1.6.0.
+
 ## 1.5.2.0
 * Certified with MobileFuse SDK 1.5.2.
 

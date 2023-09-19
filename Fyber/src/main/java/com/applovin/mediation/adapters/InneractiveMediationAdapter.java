@@ -1,5 +1,7 @@
 package com.applovin.mediation.adapters;
 
+import static com.applovin.sdk.AppLovinSdkUtils.isValidString;
+
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
@@ -23,11 +25,8 @@ import com.applovin.mediation.adapter.parameters.MaxAdapterParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
 import com.applovin.sdk.AppLovinSdk;
-
-import com.applovin.sdk.AppLovinSdkConfiguration;
 import com.astarsoftware.android.ads.AdNetworkTracker;
 import com.astarsoftware.dependencies.DependencyInjector;
-
 import com.fyber.inneractive.sdk.external.BidTokenProvider;
 import com.fyber.inneractive.sdk.external.ImpressionData;
 import com.fyber.inneractive.sdk.external.InneractiveAdManager;
@@ -45,12 +44,9 @@ import com.fyber.inneractive.sdk.external.InneractiveUnitController;
 import com.fyber.inneractive.sdk.external.OnFyberMarketplaceInitializedListener;
 import com.fyber.inneractive.sdk.external.VideoContentListener;
 
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static com.applovin.sdk.AppLovinSdkUtils.isValidString;
 
 public class InneractiveMediationAdapter
         extends MediationAdapterBase
@@ -122,7 +118,7 @@ public class InneractiveMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-        return "8.2.3.3";
+        return "8.2.4.0";
     }
 
     @Override

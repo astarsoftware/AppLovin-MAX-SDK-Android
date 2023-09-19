@@ -1,5 +1,20 @@
 # Changelog
 
+## 22.4.0.0
+* Certified with Google SDK 22.4.0.
+
+## 22.3.0.0
+* Certified with Google SDK 22.3.0.
+
+## 22.2.0.2
+* Add support for bidding on app open ads.
+
+## 22.2.0.1
+* Updated the device width measurement logic for adaptive banners to match [AdMob's logic](https://developers.google.com/admob/android/banner/anchored-adaptive).
+
+## 22.2.0.0
+* Certified with Google SDK 22.2.0.
+
 ## 22.1.0.4
 * Update CCPA state if granted mid-session. 
 

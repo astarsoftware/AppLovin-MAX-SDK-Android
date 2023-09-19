@@ -2,7 +2,7 @@ package com.applovin.mediation.adapters;
 
 import android.app.Activity;
 import android.app.Application;
-import android.os.Bundle;
+import android.content.Context;
 
 import com.applovin.mediation.MaxAdFormat;
 import com.applovin.mediation.MaxReward;
@@ -10,14 +10,18 @@ import com.applovin.mediation.adapter.MaxAdViewAdapter;
 import com.applovin.mediation.adapter.MaxAdapterError;
 import com.applovin.mediation.adapter.MaxInterstitialAdapter;
 import com.applovin.mediation.adapter.MaxRewardedAdapter;
+import com.applovin.mediation.adapter.MaxSignalProvider;
 import com.applovin.mediation.adapter.listeners.MaxAdViewAdapterListener;
 import com.applovin.mediation.adapter.listeners.MaxInterstitialAdapterListener;
 import com.applovin.mediation.adapter.listeners.MaxRewardedAdapterListener;
+import com.applovin.mediation.adapter.listeners.MaxSignalCollectionListener;
 import com.applovin.mediation.adapter.parameters.MaxAdapterInitializationParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
+import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
 import com.applovin.mediation.adapters.ironsource.BuildConfig;
 import com.applovin.sdk.AppLovinSdk;
+import com.applovin.sdk.AppLovinSdkUtils;
 import com.ironsource.mediationsdk.ISBannerSize;
 import com.ironsource.mediationsdk.IronSource;
 import com.ironsource.mediationsdk.demandOnly.ISDemandOnlyBannerLayout;
@@ -33,51 +37,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class IronSourceMediationAdapter
         extends MediationAdapterBase
-        implements MaxInterstitialAdapter, MaxRewardedAdapter, MaxAdViewAdapter
+        implements MaxSignalProvider, MaxInterstitialAdapter, MaxRewardedAdapter, MaxAdViewAdapter
 {
     private static final IronSourceRouter ROUTER      = new IronSourceRouter();
     private static final AtomicBoolean    INITIALIZED = new AtomicBoolean();
 
     private String                   mRouterPlacementIdentifier;
     private ISDemandOnlyBannerLayout adView;
-
-    private static final Application.ActivityLifecycleCallbacks activityLifecycleCallbacks = new Application.ActivityLifecycleCallbacks()
-    {
-        @Override
-        public void onActivityResumed(final Activity activity)
-        {
-            // Do not forward ironSource Activity lifecycle events
-            if ( !activity.getClass().getName().startsWith( "com.ironsource.sdk" ) )
-            {
-                IronSource.onResume( activity );
-            }
-        }
-
-        @Override
-        public void onActivityPaused(final Activity activity)
-        {
-            // Do not forward ironSource Activity lifecycle events
-            if ( !activity.getClass().getName().startsWith( "com.ironsource.sdk" ) )
-            {
-                IronSource.onPause( activity );
-            }
-        }
-
-        @Override
-        public void onActivityCreated(final Activity activity, final Bundle savedInstanceState) { }
-
-        @Override
-        public void onActivityStarted(final Activity activity) { }
-
-        @Override
-        public void onActivityStopped(final Activity activity) { }
-
-        @Override
-        public void onActivitySaveInstanceState(final Activity activity, final Bundle outState) { }
-
-        @Override
-        public void onActivityDestroyed(final Activity activity) { }
-    };
 
     public IronSourceMediationAdapter(final AppLovinSdk sdk) { super( sdk ); }
 
@@ -106,6 +72,7 @@ public class IronSourceMediationAdapter
             Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
             if ( isAgeRestrictedUser != null )
             {
+                IronSource.setMetaData( "is_deviceid_optout", Boolean.toString( isAgeRestrictedUser ) );
                 IronSource.setMetaData( "is_child_directed", Boolean.toString( isAgeRestrictedUser ) );
             }
 
@@ -117,8 +84,6 @@ public class IronSourceMediationAdapter
             Application application = ( activity != null ) ? activity.getApplication() : (Application) getApplicationContext();
 
             IronSource.initISDemandOnly( application, appKey, getAdFormatsToInitialize( parameters ) );
-
-            application.registerActivityLifecycleCallbacks( activityLifecycleCallbacks );
         }
 
         onCompletionListener.onCompletion( InitializationStatus.DOES_NOT_APPLY, null );
@@ -143,26 +108,46 @@ public class IronSourceMediationAdapter
     }
 
     @Override
+    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
+    {
+        log( "Collecting signal..." );
+
+        setPrivacySettings( parameters );
+
+        String signal = IronSource.getISDemandOnlyBiddingData( getContext( activity ) );
+        callback.onSignalCollected( signal );
+    }
+
+    @Override
     public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         setPrivacySettings( parameters );
 
+        final String bidResponse = parameters.getBidResponse();
+        final boolean isBiddingAd = AppLovinSdkUtils.isValidString( bidResponse );
         final String instanceId = parameters.getThirdPartyAdPlacementId();
 
-        log( "Loading ironSource interstitial for instance ID: " + instanceId );
+        log( "Loading ironSource " + ( isBiddingAd ? "bidding " : "" ) + "interstitial for instance ID: " + instanceId );
 
         // Create a format specific router identifier to ensure that the router can distinguish between them.
         mRouterPlacementIdentifier = IronSourceRouter.getInterstitialRouterIdentifier( instanceId );
         ROUTER.addInterstitialAdapter( this, listener, mRouterPlacementIdentifier );
 
-        if ( IronSource.isISDemandOnlyInterstitialReady( instanceId ) )
+        if ( isBiddingAd )
         {
-            log( "Ad is available already for instance ID: " + instanceId );
-            ROUTER.onAdLoaded( mRouterPlacementIdentifier );
+            IronSource.loadISDemandOnlyInterstitialWithAdm( activity, instanceId, bidResponse );
         }
         else
         {
-            IronSource.loadISDemandOnlyInterstitial( activity, instanceId );
+            if ( IronSource.isISDemandOnlyInterstitialReady( instanceId ) )
+            {
+                log( "Ad is available already for instance ID: " + instanceId );
+                ROUTER.onAdLoaded( mRouterPlacementIdentifier );
+            }
+            else
+            {
+                IronSource.loadISDemandOnlyInterstitial( activity, instanceId );
+            }
         }
     }
 
@@ -191,22 +176,31 @@ public class IronSourceMediationAdapter
     {
         setPrivacySettings( parameters );
 
+        final String bidResponse = parameters.getBidResponse();
+        final boolean isBiddingAd = AppLovinSdkUtils.isValidString( bidResponse );
         final String instanceId = parameters.getThirdPartyAdPlacementId();
 
-        log( "Loading ironSource rewarded for instance ID: " + instanceId );
+        log( "Loading ironSource " + ( isBiddingAd ? "bidding " : "" ) + "rewarded for instance ID: " + instanceId );
 
         // Create a format specific router identifier to ensure that the router can distinguish between them.
         mRouterPlacementIdentifier = IronSourceRouter.getRewardedVideoRouterIdentifier( instanceId );
         ROUTER.addRewardedAdapter( this, listener, mRouterPlacementIdentifier );
 
-        if ( IronSource.isISDemandOnlyRewardedVideoAvailable( instanceId ) )
+        if ( isBiddingAd )
         {
-            log( "Ad is available already for instance ID: " + instanceId );
-            ROUTER.onAdLoaded( mRouterPlacementIdentifier );
+            IronSource.loadISDemandOnlyRewardedVideoWithAdm( activity, instanceId, bidResponse );
         }
         else
         {
-            IronSource.loadISDemandOnlyRewardedVideo( activity, instanceId );
+            if ( IronSource.isISDemandOnlyRewardedVideoAvailable( instanceId ) )
+            {
+                log( "Ad is available already for instance ID: " + instanceId );
+                ROUTER.onAdLoaded( mRouterPlacementIdentifier );
+            }
+            else
+            {
+                IronSource.loadISDemandOnlyRewardedVideo( activity, instanceId );
+            }
         }
     }
 
@@ -237,14 +231,23 @@ public class IronSourceMediationAdapter
     {
         setPrivacySettings( parameters );
 
+        final String bidResponse = parameters.getBidResponse();
+        final boolean isBiddingAd = AppLovinSdkUtils.isValidString( bidResponse );
         final String instanceId = parameters.getThirdPartyAdPlacementId();
 
-        log( "Loading " + adFormat.getLabel() + " ad for instance ID: " + instanceId );
+        log( "Loading " + ( isBiddingAd ? "bidding " : "" ) + adFormat.getLabel() + " ad for instance ID: " + instanceId );
 
         adView = IronSource.createBannerForDemandOnly( activity, toISBannerSize( adFormat ) );
         adView.setBannerDemandOnlyListener( new AdViewListener( listener ) );
 
-        IronSource.loadISDemandOnlyBanner( activity, adView, instanceId );
+        if ( isBiddingAd )
+        {
+            IronSource.loadISDemandOnlyBannerWithAdm( activity, adView, instanceId, bidResponse );
+        }
+        else
+        {
+            IronSource.loadISDemandOnlyBanner( activity, adView, instanceId );
+        }
     }
 
     private void setPrivacySettings(final MaxAdapterParameters parameters)
@@ -302,6 +305,12 @@ public class IronSourceMediationAdapter
         {
             throw new IllegalArgumentException( "Invalid ad format: " + adFormat );
         }
+    }
+
+    private Context getContext(Activity activity)
+    {
+        // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
+        return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
     }
 
     private static class IronSourceRouter

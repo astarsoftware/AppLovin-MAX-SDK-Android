@@ -1,5 +1,17 @@
 # Changelog
 
+## 10.5.8.0
+* Certified with InMobi SDK 10.5.8.
+
+## 10.5.7.0
+* Certified with InMobi's Kotlin SDK 10.5.7.
+
+## 10.1.4.3
+* Fix the `mediaView` scaling bug for native ads, caused by mismatch in aspect ratio.
+
+## 10.1.4.2
+* Revert temporary workaround for the issue where `onAdImpression()` is called before `onAdLoadSucceeded()`.
+
 ## 10.1.4.1
 * Add a temporary workaround for the issue where `onAdImpression()` is called before `onAdLoadSucceeded().`
 
