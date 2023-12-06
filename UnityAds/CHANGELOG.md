@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.9.2.0
+* Certified with UnityAds SDK 4.9.2.
+
+## 4.9.1.0
+* Certified with UnityAds SDK 4.9.1.
+
+## 4.9.0.1
+* Downgrade UnityAds SDK to 4.8.0 due to signal collection issues with 4.9.0.
+
+## 4.9.0.0
+* Certified with UnityAds SDK 4.9.0.
+
 ## 4.8.0.0
 * Certified with UnityAds SDK 4.8.0.
 * Add the `onBannerShown()` callback.

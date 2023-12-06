@@ -1304,6 +1304,11 @@ public class FacebookMediationAdapter
                 }
             }
 
+            if ( getMediaView() != null )
+            {
+                clickableViews.add( getMediaView() );
+            }
+
             if ( nativeAd instanceof NativeBannerAd )
             {
                 if ( iconImageView != null )

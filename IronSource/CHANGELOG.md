@@ -1,5 +1,11 @@
 # Changelog
 
+## 7.6.0.0.0
+* Certified with IronSource SDK 7.6.0.
+
+## 7.5.2.0.0
+* Certified with IronSource SDK 7.5.2.
+
 ## 7.5.1.0.1
 * Set `is_deviceid_optout` parameter for COPPA end users. 
 
