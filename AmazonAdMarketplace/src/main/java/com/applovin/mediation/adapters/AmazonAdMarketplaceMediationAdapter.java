@@ -1,5 +1,6 @@
 package com.applovin.mediation.adapters;
 
+import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThread;
 import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThreadDelayed;
 
 import android.app.Activity;
@@ -7,6 +8,7 @@ import android.content.Context;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
+import android.webkit.WebView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -109,12 +111,13 @@ public class AmazonAdMarketplaceMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-       return "9.8.8.0";
+       return "9.8.9.0";
     }
 
     @Override
     public void onDestroy()
     {
+        maybeDestroyWebView( adView );
         adView = null;
         interstitialAd = null;
         rewardedAd = null;
@@ -503,6 +506,25 @@ public class AmazonAdMarketplaceMediationAdapter
         return encodedBidId + "_" + adFormatLabel;
     }
 
+    // APS banners have a memory leak where banners are never cleaned up after they are destroyed.
+    // This is a temporary fix while Amazon fixes it in their SDK.
+    private void maybeDestroyWebView(final WebView webView)
+    {
+        if ( webView == null ) return;
+
+        runOnUiThread( () -> {
+
+            webView.removeAllViews();
+
+            // Loading a blank page will ensure that the WebView isn't doing anything when we destroy it
+            webView.loadUrl( "about:blank" );
+
+            webView.onPause();
+            webView.destroyDrawingCache();
+            webView.destroy();
+        } );
+    }
+
     //endregion
 
     private class AdViewListener
@@ -818,7 +840,8 @@ public class AmazonAdMarketplaceMediationAdapter
             return result;
         }
 
-        @Override @NonNull
+        @Override
+        @NonNull
         public String toString()
         {
             return "MediationHints{" +

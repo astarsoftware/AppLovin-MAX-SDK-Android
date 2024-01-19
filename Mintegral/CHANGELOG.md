@@ -1,7 +1,24 @@
 # Changelog
 
+## 16.6.11.0
+* Certified with Mintegral SDK 16.6.11.
+
+## 16.5.91.2
+* Update to set channel code/ID only when SDK is being initialized.
+
+## 16.5.91.1
+* Update to retrieve creative ID and set channel code/ID using new APIs.
+* Now requires MAX SDK version 9.15.0 or higher.
+
+## 16.5.91.0
+* Certified with Mintegral SDK 16.5.91.
+
+## 16.5.81.0
+* Certified with Mintegral SDK 16.5.81.
+
 ## 16.5.71.0
 * Certified with Mintegral SDK 16.5.71.
+* Note: This is the first Mintegral SDK with TCF v2 compliance.
 
 ## 16.5.61.0
 * Certified with Mintegral SDK 16.5.61.
