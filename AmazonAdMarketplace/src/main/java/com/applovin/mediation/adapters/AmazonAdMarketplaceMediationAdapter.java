@@ -117,7 +117,7 @@ public class AmazonAdMarketplaceMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-       return "9.8.9.0";
+       return "9.9.5.0";
     }
 
     @Override

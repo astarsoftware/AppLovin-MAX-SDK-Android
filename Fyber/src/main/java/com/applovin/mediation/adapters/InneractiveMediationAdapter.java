@@ -118,7 +118,7 @@ public class InneractiveMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-        return "8.2.5.0";
+        return "8.2.7.1";
     }
 
     @Override
