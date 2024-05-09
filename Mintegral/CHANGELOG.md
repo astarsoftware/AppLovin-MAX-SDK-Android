@@ -1,5 +1,42 @@
 # Changelog
 
+## 16.7.31.0
+* Certified with Mintegral SDK 16.7.31.
+
+## 16.7.21.0
+* Certified with Mintegral SDK 16.7.21.
+
+## 16.7.11.0
+* Certified with Mintegral SDK 16.7.11.
+
+## 16.6.71.0
+* Certified with Mintegral SDK 16.6.71.
+* Remove deprecated callbacks `onRewardedAdVideoStarted()` and `onRewardedAdVideoCompleted()`.
+
+## 16.6.61.1
+* Add support for app open ads.
+
+## 16.6.61.0
+* Certified with Mintegral SDK 16.6.61.
+
+## 16.6.51.1
+* Remove ProGuard rules since they are included in Mintegral's libraries.
+
+## 16.6.51.0
+* Certified with Mintegral SDK 16.6.51.
+
+## 16.6.41.0
+* Certified with Mintegral SDK 16.6.41.
+
+## 16.6.34.0
+* Certified with Mintegral SDK 16.6.34.
+
+## 16.6.31.0
+* Certified with Mintegral SDK 16.6.31.
+
+## 16.6.21.0
+* Certified with Mintegral SDK 16.6.21.
+
 ## 16.6.11.0
 * Certified with Mintegral SDK 16.6.11.
 

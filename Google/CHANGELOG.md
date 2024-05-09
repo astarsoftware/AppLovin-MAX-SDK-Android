@@ -1,5 +1,16 @@
 # Changelog
 
+## 23.0.0.1
+* Update adaptive banner width calculation to always use `Display.getMetrics()` instead of using `WindowMetrics.getBounds()` when available. The latter returns the full width of the device instead of the app window.
+* Remove deprecated callbacks `onRewardedAdVideoStarted()`, `onRewardedAdVideoCompleted()`, `onRewardedInterstitialAdVideoStarted()` and `onRewardedInterstitialAdVideoCompleted`.
+
+## 23.0.0.0
+* Certified with Google SDK 23.0.0
+* Now requires minimum Android API level be 21 or higher.
+
+## 22.6.0.1
+* Use `apply()` when saving to `SharedPreferences` to prevent ANRs.
+
 ## 22.6.0.0
 * Certified with Google SDK 22.6.0.
 
@@ -10,7 +21,7 @@
 * Certified with Google SDK 22.5.0.
 
 ## 22.4.0.1
-Fix rendering of native ad video content in React Native or Flutter.
+* Fix rendering of native ad video content in React Native or Flutter.
 
 ## 22.4.0.0
 * Certified with Google SDK 22.4.0.

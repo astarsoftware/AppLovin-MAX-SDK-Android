@@ -1,5 +1,17 @@
 # Changelog
 
+## 7.0.1.0
+* Certified with Yandex SDK 7.0.1.
+* Remove deprecated callbacks `onRewardedAdVideoStarted()` and `onRewardedAdVideoCompleted()`.
+
+## 6.4.1.0
+* Certified with Yandex SDK 6.4.1.
+
+## 6.4.0.0
+* Certified with Yandex SDK 6.4.0 and AppMetrica SDK 6.2.1.
+* Add support for new bidding token generation method.
+* Add support for age restricted users.
+
 ## 6.1.0.0
 * Certified with Yandex SDK 6.1.0.
 

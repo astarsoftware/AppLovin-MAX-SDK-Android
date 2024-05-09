@@ -1,5 +1,24 @@
 # Changelog
 
+## 7.3.2.0
+* Certified with Vungle SDK 7.3.2.
+
+## 7.3.1.2
+* Fix `Null extracted folder for artifact` build error when using AGP < 8.0.
+
+## 7.3.1.1
+* Fix a dependency issue with previous adapter version.
+
+## 7.3.1.0
+* Certified with Vungle SDK 7.3.1.
+
+## 7.3.0.1
+* Downgrade Vungle SDK to 7.1.0 due to crashes in Vungle SDK version 7.3.0.
+* Remove deprecated callbacks `onRewardedAdVideoStarted()` and `onRewardedAdVideoCompleted()`.
+
+## 7.3.0.0
+* Certified with Vungle SDK 7.3.0.
+
 ## 7.1.0.0
 * Certified with Vungle SDK 7.1.0.
 * Update `play()` API to use context.

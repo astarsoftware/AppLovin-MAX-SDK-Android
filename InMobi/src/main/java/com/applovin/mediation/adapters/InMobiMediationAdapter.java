@@ -954,7 +954,7 @@ public class InMobiMediationAdapter
             if ( TextUtils.isEmpty( inMobiNative.getAdTitle() ) )
             {
                 log( "Native " + adFormat.getLabel() + " ad does not have required assets." );
-                listener.onAdViewAdLoadFailed( MaxAdapterError.INVALID_CONFIGURATION );
+                listener.onAdViewAdLoadFailed( new MaxAdapterError( -5400, "Missing Native Ad Assets" ) );
 
                 return;
             }
@@ -1296,10 +1296,12 @@ public class InMobiMediationAdapter
                         primaryViewWidth = (int) ( primaryViewHeight * getMediaContentAspectRatio() );
                     }
 
+                    ViewGroup.LayoutParams layoutParams = mediaView.getLayoutParams();
+                    
                     // Compute primaryViewWidth when it is a dynamic layout value before getting the actual measurement.
-                    if ( primaryViewWidth == 0 )
+                    if ( primaryViewWidth == 0 && layoutParams != null )
                     {
-                        int layoutWidth = mediaView.getLayoutParams().width;
+                        int layoutWidth = layoutParams.width;
                         if ( layoutWidth == ViewGroup.LayoutParams.WRAP_CONTENT || layoutWidth == ViewGroup.LayoutParams.MATCH_PARENT )
                         {
                             primaryViewWidth = (int) ( primaryViewHeight * getMediaContentAspectRatio() );

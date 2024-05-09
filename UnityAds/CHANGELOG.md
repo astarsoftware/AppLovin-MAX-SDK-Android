@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.10.0.0
+* Certified with UnityAds SDK 4.10.0.
+
+## 4.9.3.0
+* Certified with UnityAds SDK 4.9.3.
+
 ## 4.9.2.1
 * Add support for bidding on banners/MRECs.
 

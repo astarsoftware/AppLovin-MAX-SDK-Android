@@ -7,21 +7,26 @@ import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.view.View;
-import android.webkit.WebView;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
+import com.amazon.aps.ads.Aps;
+import com.amazon.aps.ads.ApsAd;
+import com.amazon.aps.ads.ApsAdController;
+import com.amazon.aps.ads.ApsAdError;
+import com.amazon.aps.ads.ApsAdRequest;
+import com.amazon.aps.ads.ApsConstants;
+import com.amazon.aps.ads.listeners.ApsAdListener;
+import com.amazon.aps.ads.listeners.ApsAdRequestListener;
+import com.amazon.aps.shared.APSAnalytics;
+import com.amazon.aps.shared.ApsMetrics;
+import com.amazon.aps.shared.analytics.APSEventSeverity;
+import com.amazon.aps.shared.analytics.APSEventType;
+import com.amazon.aps.shared.metrics.ApsMetricsPerfEventModelBuilder;
+import com.amazon.aps.shared.metrics.model.ApsMetricsResult;
 import com.amazon.device.ads.AdError;
-import com.amazon.device.ads.AdRegistration;
-import com.amazon.device.ads.DTBAdBannerListener;
-import com.amazon.device.ads.DTBAdCallback;
-import com.amazon.device.ads.DTBAdInterstitial;
-import com.amazon.device.ads.DTBAdInterstitialListener;
 import com.amazon.device.ads.DTBAdLoader;
+import com.amazon.device.ads.DTBAdRequest;
 import com.amazon.device.ads.DTBAdResponse;
-import com.amazon.device.ads.DTBAdView;
+import com.amazon.device.ads.DTBAdSize;
 import com.amazon.device.ads.SDKUtilities;
 import com.applovin.mediation.MaxAdFormat;
 import com.applovin.mediation.MaxReward;
@@ -51,6 +56,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThreadDelayed;
+
 /**
  * Created by Thomas So on December 9 2021
  * <p>
@@ -70,17 +80,13 @@ public class AmazonAdMarketplaceMediationAdapter
     private static final Map<String, MediationHints> mediationHintsCache     = new HashMap<>();
     private static final Object                      mediationHintsCacheLock = new Object();
 
-    // Contains mapping of ad format -> crid
-    private static final Map<MaxAdFormat, String> creativeIds     = new HashMap<>();
-    private static final Object                   creativeIdsLock = new Object();
-
     // Contains mapping of ad format -> amazon hashed bidder identifier / amznp
     private static final Map<MaxAdFormat, String> hashedBidderIds     = new HashMap<>();
     private static final Object                   hashedBidderIdsLock = new Object();
 
-    private DTBAdView         adView;
-    private DTBAdInterstitial interstitialAd;
-    private DTBAdInterstitial rewardedAd;
+    private ApsAdController adViewController;
+    private ApsAdController interstitialAdController;
+    private ApsAdController rewardedAdController;
 
 	// astar
     private MediationHints bannerHints = null;
@@ -95,8 +101,8 @@ public class AmazonAdMarketplaceMediationAdapter
         // NOTE: Amazon wants publishers to initialize their SDK alongside MAX
         if ( parameters.isTesting() )
         {
-            AdRegistration.enableTesting( true );
-            AdRegistration.enableLogging( true );
+            Aps.setTestingMode( true );
+            Aps.enableLogging( true );
         }
 
         onCompletionListener.onCompletion( InitializationStatus.DOES_NOT_APPLY, null );
@@ -105,7 +111,7 @@ public class AmazonAdMarketplaceMediationAdapter
     @Override
     public String getSdkVersion()
     {
-        return AdRegistration.getVersion();
+        return Aps.getSdkVersion();
     }
 
     @Override
@@ -117,26 +123,37 @@ public class AmazonAdMarketplaceMediationAdapter
     @Override
     public void onDestroy()
     {
-        maybeDestroyWebView( adView );
-        adView = null;
-        interstitialAd = null;
-        rewardedAd = null;
+        maybeCleanupAdView( adViewController );
+        adViewController = null;
+
+        maybeCleanupAdView( interstitialAdController );
+        interstitialAdController = null;
+
+        maybeCleanupAdView( rewardedAdController );
+        rewardedAdController = null;
     }
 
     @Override
     public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
     {
+        long startTime = System.currentTimeMillis();
+        ApsMetrics.Companion.setAdapterVersion( "MAX" + getAdapterVersion() );
+        ApsMetricsResult metricsResult = ApsMetricsResult.Success;
+        String apsBidId = null;
+        String corrId = UUID.randomUUID().toString();
+
         final MaxAdFormat adFormat = parameters.getAdFormat();
-        final Object adResponseObj = parameters.getLocalExtraParameters().get( "amazon_ad_response" );
-        final Object adErrorObj = parameters.getLocalExtraParameters().get( "amazon_ad_error" );
+        final Object adResponseObj = parameters.getLocalExtraParameters().get( ApsConstants.AMAZON_SUCCESS_RESPONSE );
+        final Object adErrorObj = parameters.getLocalExtraParameters().get( ApsConstants.AMAZON_ERROR_RESPONSE );
 
         // There may be cases where pubs pass in info from integration (e.g. CCPA) directly into a _new_ ad loader - check (and update) for that
         // There may also be cases where we have both a response and error object - for which one is stale - check for that
         DTBAdLoader adLoader = null;
 
-        if ( adResponseObj instanceof DTBAdResponse )
+        if ( adResponseObj instanceof ApsAd )
         {
-            DTBAdLoader retrievedAdLoader = ( (DTBAdResponse) adResponseObj ).getAdLoader();
+            ApsAdRequest retrievedAdLoader = ( (ApsAd) adResponseObj ).getAdLoader();
+
             if ( !usedAdLoaders.contains( retrievedAdLoader.hashCode() ) )
             {
                 d( "Using ad loader from ad response object: " + retrievedAdLoader );
@@ -144,13 +161,50 @@ public class AmazonAdMarketplaceMediationAdapter
             }
             else
             {
-                parameters.getLocalExtraParameters().remove( "amazon_ad_response" );
+                parameters.getLocalExtraParameters().remove( ApsConstants.AMAZON_SUCCESS_RESPONSE );
             }
+
+            apsBidId = ( (ApsAd) adResponseObj ).getBidId();
+        }
+        else if ( adResponseObj instanceof DTBAdResponse )
+        {
+            // Backward compatibility with legacy APIs
+            DTBAdLoader retrievedAdLoader = ( (DTBAdResponse) adResponseObj ).getAdLoader();
+
+            if ( !usedAdLoaders.contains( retrievedAdLoader.hashCode() ) )
+            {
+                d( "Using ad loader from ad response object: " + retrievedAdLoader );
+                adLoader = retrievedAdLoader;
+            }
+            else
+            {
+                parameters.getLocalExtraParameters().remove( ApsConstants.AMAZON_SUCCESS_RESPONSE );
+            }
+
+            apsBidId = ( (DTBAdResponse) adResponseObj ).getBidId();
         }
 
-        if ( adErrorObj instanceof AdError )
+        if ( adErrorObj instanceof ApsAdError )
         {
+            ApsAdRequest retrievedAdLoader = (ApsAdRequest) ( (ApsAdError) adErrorObj ).getAdLoader();
+            corrId = retrievedAdLoader.getCorrelationId();
+
+            if ( !usedAdLoaders.contains( retrievedAdLoader.hashCode() ) )
+            {
+                d( "Using ad loader from ad error object: " + retrievedAdLoader );
+                adLoader = retrievedAdLoader;
+            }
+            else
+            {
+                parameters.getLocalExtraParameters().remove( ApsConstants.AMAZON_ERROR_RESPONSE );
+            }
+        }
+        else if ( adErrorObj instanceof AdError )
+        {
+            // Backward compatibility with legacy APIs
             DTBAdLoader retrievedAdLoader = ( (AdError) adErrorObj ).getAdLoader();
+            corrId = ( (DTBAdRequest) retrievedAdLoader ).getCorrelationId();
+
             if ( !usedAdLoaders.contains( retrievedAdLoader.hashCode() ) )
             {
                 d( "Using ad loader from ad error object: " + retrievedAdLoader );
@@ -170,7 +224,7 @@ public class AmazonAdMarketplaceMediationAdapter
             if ( adLoader == currentAdLoader )
             {
                 d( "Passed in ad loader same as current ad loader: " + currentAdLoader );
-                loadSubsequentSignal( adLoader, parameters, adFormat, callback );
+                loadSubsequentSignal( adLoader, corrId, parameters, adFormat, callback );
             }
             // If new ad loader - update for ad format and proceed to initial signal collection logic
             else
@@ -198,7 +252,7 @@ public class AmazonAdMarketplaceMediationAdapter
             if ( currentAdLoader != null )
             {
                 d( "Using cached ad loader: " + currentAdLoader );
-                loadSubsequentSignal( currentAdLoader, parameters, adFormat, callback );
+                loadSubsequentSignal( currentAdLoader, corrId, parameters, adFormat, callback );
             }
             // No ad loader passed in, and no ad loaders cached - fail signal collection
             else
@@ -206,41 +260,63 @@ public class AmazonAdMarketplaceMediationAdapter
                 failSignalCollection( "DTBAdResponse or AdError not passed in ad load API", callback );
             }
         }
+
+        ApsMetrics.adapterEvent( apsBidId, new ApsMetricsPerfEventModelBuilder()
+                .withAdapterStartTime( startTime )
+                .withCorrelationId( corrId )
+                .withAdapterEndTime( metricsResult, System.currentTimeMillis() )
+                .withBidId( apsBidId ) );
     }
 
-    private void loadSubsequentSignal(final DTBAdLoader adLoader,
+    private void loadSubsequentSignal(DTBAdLoader adLoader,
+                                      final String corrId,
                                       final MaxAdapterSignalCollectionParameters parameters,
                                       final MaxAdFormat adFormat,
                                       final MaxSignalCollectionListener callback)
     {
         d( "Found existing ad loader (" + adLoader + ") for format: " + adFormat + " - loading..." );
 
-        adLoader.loadAd( new DTBAdCallback()
+        if ( !( adLoader instanceof ApsAdRequest ) )
+        {
+            // Convert adloader to ApsAdRequest
+            adLoader = new ApsAdRequest( (DTBAdRequest) adLoader );
+        }
+
+        ApsAdRequest apsAdRequest = (ApsAdRequest) adLoader;
+
+        apsAdRequest.setCorrelationId( corrId );
+        apsAdRequest.loadAd( new ApsAdRequestListener()
         {
             @Override
-            public void onSuccess(@NonNull final DTBAdResponse dtbAdResponse)
+            public void onSuccess(final ApsAd apsAd)
             {
                 // Store ad loader for future ad refresh token collection
-                adLoaders.put( adFormat, dtbAdResponse.getAdLoader() );
+                adLoaders.put( adFormat, apsAd.getAdLoader() );
 
-                usedAdLoaders.add( dtbAdResponse.getAdLoader().hashCode() );
+                usedAdLoaders.add( apsAd.getAdLoader().hashCode() );
 
-                d( "Signal collected for ad loader: " + dtbAdResponse.getAdLoader() );
+                d( "Signal collected for ad loader: " + apsAd.getAdLoader() );
 
-                processAdResponse( parameters, dtbAdResponse, adFormat, callback );
+                processAdResponse( parameters, apsAd, adFormat, callback );
             }
 
             @Override
-            public void onFailure(@NonNull final AdError adError)
+            public void onFailure(final ApsAdError apsAdError)
             {
-                // Store ad loader for future ad refresh token collection
-                adLoaders.put( adFormat, adError.getAdLoader() );
+                // Store ad requests for future ad refresh token collection
+                if ( apsAdError.getAdLoader() != null )
+                {
+                    adLoaders.put( adFormat, apsAdError.getAdLoader() );
+                    usedAdLoaders.add( apsAdError.getAdLoader().hashCode() );
 
-                usedAdLoaders.add( adError.getAdLoader().hashCode() );
+                    d( "Signal failed to collect for ad loader: " + apsAdError.getAdLoader() );
 
-                d( "Signal failed to collect for ad loader: " + adError.getAdLoader() );
-
-                failSignalCollection( adError, callback );
+                    failSignalCollection( apsAdError, callback );
+                }
+                else
+                {
+                    APSAnalytics.logEvent( APSEventSeverity.FATAL, APSEventType.EXCEPTION, "MAX - ApsAdError getAdLoader returns null" );
+                }
             }
         } );
     }
@@ -252,7 +328,7 @@ public class AmazonAdMarketplaceMediationAdapter
         final String encodedBidId = SDKUtilities.getPricePoint( adResponse );
         if ( AppLovinSdkUtils.isValidString( encodedBidId ) )
         {
-            final MediationHints mediationHints = new MediationHints( SDKUtilities.getBidInfo( adResponse ) );
+            final MediationHints mediationHints = new MediationHints( adResponse );
             final String mediationHintsCacheId = getMediationHintsCacheId( encodedBidId, adFormat );
 
             synchronized ( mediationHintsCacheLock )
@@ -280,7 +356,6 @@ public class AmazonAdMarketplaceMediationAdapter
                 hashedBidderId = String.valueOf( adResponse.getDefaultVideoAdsRequestCustomParams().get( "amznp" ) );
             }
             setHashedBidderId( adFormat, hashedBidderId );
-            setCreativeId( adFormat, adResponse.getCrid() );
 
             d( "Successfully loaded encoded bid id: " + encodedBidId );
 
@@ -328,10 +403,20 @@ public class AmazonAdMarketplaceMediationAdapter
         // Paranoia
         if ( mediationHints != null )
         {
-            adView = new DTBAdView( getContext( activity ), new AdViewListener( adFormat, listener ) );
-            adView.fetchAd( mediationHints.value );
+            adViewController = new ApsAdController( getContext( activity ), new AdViewListener( adFormat, listener ) );
+            if ( mediationHints.dtbAdResponse instanceof ApsAd )
+            {
+                adViewController.fetchAd( (ApsAd) mediationHints.dtbAdResponse );
+;
+            }
+            else // DTBAdResponse
+            {
+                DTBAdSize dtbAdSize = ( mediationHints.dtbAdResponse ).getDTBAds().get( 0 );
+                adViewController.fetchBannerAd( SDKUtilities.getBidInfo( mediationHints.dtbAdResponse ), dtbAdSize.getWidth(), dtbAdSize.getHeight() );
+            }
+
 			// astar
-            this.bannerHints = mediationHints;
+			this.bannerHints = mediationHints;
         }
         else
         {
@@ -354,10 +439,10 @@ public class AmazonAdMarketplaceMediationAdapter
             return;
         }
 
-        interstitialAd = new DTBAdInterstitial( activity, new InterstitialListener( listener ) );
+        interstitialAdController = new ApsAdController( activity, new InterstitialListener( listener ) );
 
         final String mediationHintsCacheId = getMediationHintsCacheId( encodedBidId, MaxAdFormat.INTERSTITIAL );
-        final boolean success = loadFullscreenAd( mediationHintsCacheId, interstitialAd );
+        final boolean success = loadFullscreenAd( mediationHintsCacheId, interstitialAdController );
         if ( !success )
         {
             listener.onInterstitialAdLoadFailed( MaxAdapterError.INVALID_LOAD_STATE );
@@ -369,9 +454,9 @@ public class AmazonAdMarketplaceMediationAdapter
     {
         log( "Showing interstitial ad..." );
 
-        if ( interstitialAd != null )
+        if ( interstitialAdController != null )
         {
-            interstitialAd.show();
+            interstitialAdController.show();
         }
         else
         {
@@ -392,10 +477,10 @@ public class AmazonAdMarketplaceMediationAdapter
             return;
         }
 
-        rewardedAd = new DTBAdInterstitial( activity, new RewardedAdListener( listener ) );
+        rewardedAdController = new ApsAdController( activity, new RewardedAdListener( listener ) );
 
         final String mediationHintsCacheId = getMediationHintsCacheId( encodedBidId, MaxAdFormat.REWARDED );
-        final boolean success = loadFullscreenAd( mediationHintsCacheId, rewardedAd );
+        final boolean success = loadFullscreenAd( mediationHintsCacheId, rewardedAdController );
         if ( !success )
         {
             listener.onRewardedAdLoadFailed( MaxAdapterError.INVALID_LOAD_STATE );
@@ -407,12 +492,12 @@ public class AmazonAdMarketplaceMediationAdapter
     {
         log( "Showing rewarded ad..." );
 
-        if ( rewardedAd != null )
+        if ( rewardedAdController != null )
         {
             // Configure userReward from server.
             configureReward( parameters );
 
-            rewardedAd.show();
+            rewardedAdController.show();
         }
         else
         {
@@ -423,7 +508,7 @@ public class AmazonAdMarketplaceMediationAdapter
 
     //region Helper Methods
 
-    private boolean loadFullscreenAd(final String mediationHintsCacheId, final DTBAdInterstitial interstitial)
+    private boolean loadFullscreenAd(final String mediationHintsCacheId, final ApsAdController apsAdController)
     {
         MediationHints mediationHints;
         synchronized ( mediationHintsCacheLock )
@@ -441,10 +526,9 @@ public class AmazonAdMarketplaceMediationAdapter
             return false;
         }
 
-        interstitial.fetchAd( mediationHints.value );
+        apsAdController.fetchInterstitialAd( SDKUtilities.getBidInfo( mediationHints.dtbAdResponse ) );
 		// astar
 		this.interstitialHints = mediationHints;
-
         return true;
     }
 
@@ -452,14 +536,6 @@ public class AmazonAdMarketplaceMediationAdapter
     {
         // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
         return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
-    }
-
-    private void setCreativeId(final MaxAdFormat adFormat, final String creativeId)
-    {
-        synchronized ( creativeIdsLock )
-        {
-            creativeIds.put( adFormat, creativeId );
-        }
     }
 
     private void setHashedBidderId(final MaxAdFormat adFormat, final String hashedBidderId)
@@ -470,17 +546,13 @@ public class AmazonAdMarketplaceMediationAdapter
         }
     }
 
-    private Bundle createExtraInfo(final MaxAdFormat adFormat)
+    private Bundle createExtraInfo(final MaxAdFormat adFormat, String creativeId)
     {
         Bundle extraInfo = new Bundle( 2 );
 
-        synchronized ( creativeIdsLock )
+        if ( AppLovinSdkUtils.isValidString( creativeId ) )
         {
-            String creativeId = creativeIds.get( adFormat );
-            if ( AppLovinSdkUtils.isValidString( creativeId ) )
-            {
-                extraInfo.putString( "creative_id", creativeId );
-            }
+            extraInfo.putString( "creative_id", creativeId );
         }
 
         synchronized ( hashedBidderIdsLock )
@@ -506,29 +578,18 @@ public class AmazonAdMarketplaceMediationAdapter
         return encodedBidId + "_" + adFormatLabel;
     }
 
-    // APS banners have a memory leak where banners are never cleaned up after they are destroyed.
-    // This is a temporary fix while Amazon fixes it in their SDK.
-    private void maybeDestroyWebView(final WebView webView)
+    private void maybeCleanupAdView(final ApsAdController apsAdController)
     {
-        if ( webView == null ) return;
-
-        runOnUiThread( () -> {
-
-            webView.removeAllViews();
-
-            // Loading a blank page will ensure that the WebView isn't doing anything when we destroy it
-            webView.loadUrl( "about:blank" );
-
-            webView.onPause();
-            webView.destroyDrawingCache();
-            webView.destroy();
-        } );
+        if ( apsAdController != null && apsAdController.getApsAdView() != null )
+        {
+            apsAdController.getApsAdView().cleanup();
+        }
     }
 
     //endregion
 
     private class AdViewListener
-            implements DTBAdBannerListener
+            implements ApsAdListener
     {
         private final MaxAdFormat              adFormat;
         private final MaxAdViewAdapterListener listener;
@@ -540,7 +601,7 @@ public class AmazonAdMarketplaceMediationAdapter
         }
 
         @Override
-        public void onAdLoaded(final View view)
+        public void onAdLoaded(final ApsAd apsAd)
         {
             d( "AdView ad loaded" );
             // astar
@@ -548,24 +609,22 @@ public class AmazonAdMarketplaceMediationAdapter
 			MediationHints hints = AmazonAdMarketplaceMediationAdapter.this.bannerHints;
 			if(hints != null) {
 				try {
-					String adHtml = (String) hints.value;
-					networkInfo = getNetworkInfoFromHtml(adHtml);
+					networkInfo = networkInfoFromAdResponse(hints.dtbAdResponse);
 				} catch (Throwable t) {
 					log("Error parsing ad html",t);
 				}
 			}
 
-
 			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
 			adTracker.adDidLoadForNetwork("amazon", "max", "banner", networkInfo);
 
-
-			Bundle extraInfo = createExtraInfo( adFormat );
-			listener.onAdViewAdLoaded( view, extraInfo );
+            Bundle extraInfo = createExtraInfo( adFormat, apsAd.getCrid() );
+            listener.onAdViewAdLoaded( apsAd.getAdView(), extraInfo );
         }
 
 		// astar
-		public Map<String, Object> getNetworkInfoFromHtml(String html) {
+		// - Html is no longer included... getting stuff from the object that is available now
+		/*public Map<String, Object> getNetworkInfoFromHtml(String html) {
 			Map<String, Object> networkInfo = new HashMap<>();
 
 			String jsCall = html.split("<script[^>]*>")[1].replace("</script></div>","");
@@ -578,53 +637,61 @@ public class AmazonAdMarketplaceMediationAdapter
 			networkInfo.put("jsCall",jsCall);
 
 			return networkInfo;
+		}*/
+		public Map<String, Object> networkInfoFromAdResponse(DTBAdResponse response) {
+			Map<String, Object> networkInfo = new HashMap<>();
+			networkInfo.put("bidId", response.getBidId());
+			networkInfo.put("creativeId", response.getCrid());
+			networkInfo.put("impressionUrl",response.getImpressionUrl());
+			return networkInfo;
 		}
 
-
-		@Override
-        public void onAdFailed(final View view)
+        @Override
+        public void onAdFailedToLoad(final ApsAd apsAd)
         {
             e( "AdView failed to load" );
             listener.onAdViewAdLoadFailed( MaxAdapterError.UNSPECIFIED );
         }
 
         @Override
-        public void onAdClicked(final View view)
+        public void onAdClicked(final ApsAd apsAd)
         {
             d( "AdView clicked" );
             listener.onAdViewAdClicked();
         }
 
         @Override
-        public void onImpressionFired(final View view)
+        public void onImpressionFired(final ApsAd apsAd)
         {
             d( "AdView impression fired" );
             listener.onAdViewAdDisplayed();
         }
 
         @Override
-        public void onAdOpen(final View view)
+        public void onAdError(final ApsAd apsAd)
+        {
+            // Catch all error callback, display failure callback. Ex: when a webview crashes, something crashes on the JS side, or the video stops playing midway. Implementation is not complete in the SDK
+            e( "AdView display failed" );
+            listener.onAdViewAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+        }
+
+        @Override
+        public void onAdOpen(final ApsAd apsAd)
         {
             d( "AdView expanded" );
             listener.onAdViewAdExpanded();
         }
 
         @Override
-        public void onAdClosed(final View view)
+        public void onAdClosed(final ApsAd apsAd)
         {
             d( "AdView collapsed" );
             listener.onAdViewAdCollapsed();
         }
-
-        @Override
-        public void onAdLeftApplication(final View view)
-        {
-            d( "AdView left application" );
-        }
     }
 
     private class InterstitialListener
-            implements DTBAdInterstitialListener
+            implements ApsAdListener
     {
         private final MaxInterstitialAdapterListener listener;
 
@@ -634,7 +701,7 @@ public class AmazonAdMarketplaceMediationAdapter
         }
 
         @Override
-        public void onAdLoaded(final View view)
+        public void onAdLoaded(final ApsAd apsAd)
         {
             d( "Interstitial loaded" );
 
@@ -643,8 +710,7 @@ public class AmazonAdMarketplaceMediationAdapter
 			MediationHints hints = AmazonAdMarketplaceMediationAdapter.this.interstitialHints;
 			if(hints != null) {
 				try {
-					String adHtml = (String) hints.value;
-					networkInfo = getNetworkInfoFromHtml(adHtml);
+					networkInfo = networkInfoFromAdResponse(hints.dtbAdResponse);
 				} catch (Throwable t) {
 					log("Error parsing ad html",t);
 				}
@@ -653,75 +719,70 @@ public class AmazonAdMarketplaceMediationAdapter
 			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
 			adTracker.adDidLoadForNetwork("amazon", "max", "interstitial", networkInfo);
 
-
-			Bundle extraInfo = createExtraInfo( MaxAdFormat.INTERSTITIAL );
-			listener.onInterstitialAdLoaded( extraInfo );
+            Bundle extraInfo = createExtraInfo( MaxAdFormat.INTERSTITIAL, apsAd.getCrid() );
+            listener.onInterstitialAdLoaded( extraInfo );
         }
 
-		public Map<String, Object> getNetworkInfoFromHtml(String html) {
+		// astar - html no longer included with object, getting available things from response object
+		public Map<String, Object> networkInfoFromAdResponse(DTBAdResponse response) {
 			Map<String, Object> networkInfo = new HashMap<>();
-
-			String jsCall = html.split("<script[^>]*>")[1].replace("</script></div>","");
-			String paramString = jsCall.replace(");","").replace(" ","").replace("amzn.dtb.loadAd(\"","");
-			String[] params = paramString.split("\",\"");
-			String domain = params[2].split(",")[0].replace("\"","");
-			networkInfo.put("bidCacheId",params[1]);
-			networkInfo.put("encodedBidCacheId",params[0]);
-			networkInfo.put("domain",domain);
-			networkInfo.put("jsCall",jsCall);
-
+			networkInfo.put("bidId", response.getBidId());
+			networkInfo.put("creativeId", response.getCrid());
+			networkInfo.put("impressionUrl",response.getImpressionUrl());
 			return networkInfo;
 		}
 
         @Override
-        public void onAdFailed(final View view)
+        public void onAdFailedToLoad(final ApsAd apsAd)
         {
             e( "Interstitial failed to load" );
             listener.onInterstitialAdLoadFailed( MaxAdapterError.NO_FILL );
         }
 
         @Override
-        public void onImpressionFired(final View view)
+        public void onImpressionFired(final ApsAd apsAd)
         {
             d( "Interstitial did fire impression" );
             listener.onInterstitialAdDisplayed();
         }
 
         @Override
-        public void onAdOpen(final View view)
+        public void onAdError(final ApsAd apsAd)
+        {
+            // Catch all error callback, display failure callback. Ex: when a webview crashes, something crashes on the JS side, or the video stops playing midway. Implementation is not complete in the SDK
+            e( "Interstitial display failed" );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
+        }
+
+        @Override
+        public void onAdOpen(final ApsAd apsAd)
         {
             d( "Interstitial did open" );
         }
 
         @Override
-        public void onAdClicked(final View view)
+        public void onAdClicked(final ApsAd apsAd)
         {
             d( "Interstitial clicked" );
             listener.onInterstitialAdClicked();
         }
 
         @Override
-        public void onVideoCompleted(final View view)
+        public void onVideoCompleted(final ApsAd apsAd)
         {
             d( "Interstitial video completed" );
         }
 
         @Override
-        public void onAdClosed(final View view)
+        public void onAdClosed(final ApsAd apsAd)
         {
             d( "Interstitial closed" );
             listener.onInterstitialAdHidden();
         }
-
-        @Override
-        public void onAdLeftApplication(final View view)
-        {
-            d( "Interstitial will leave application" );
-        }
     }
 
     private class RewardedAdListener
-            implements DTBAdInterstitialListener
+            implements ApsAdListener
     {
         private final MaxRewardedAdapterListener listener;
         private       boolean                    hasGrantedReward;
@@ -732,52 +793,58 @@ public class AmazonAdMarketplaceMediationAdapter
         }
 
         @Override
-        public void onAdLoaded(final View view)
+        public void onAdLoaded(final ApsAd apsAd)
         {
             d( "Rewarded ad loaded" );
 
-            Bundle extraInfo = createExtraInfo( MaxAdFormat.REWARDED );
+            Bundle extraInfo = createExtraInfo( MaxAdFormat.REWARDED, apsAd.getCrid() );
             listener.onRewardedAdLoaded( extraInfo );
         }
 
         @Override
-        public void onAdFailed(final View view)
+        public void onAdFailedToLoad(final ApsAd apsAd)
         {
             e( "Rewarded ad failed to load" );
             listener.onRewardedAdLoadFailed( MaxAdapterError.NO_FILL );
         }
 
         @Override
-        public void onImpressionFired(final View view)
+        public void onImpressionFired(final ApsAd apsAd)
         {
             d( "Rewarded ad did fire impression" );
             listener.onRewardedAdDisplayed();
         }
 
         @Override
-        public void onAdOpen(final View view)
+        public void onAdError(final ApsAd apsAd)
         {
-            d( "Rewarded ad did open" );
-            listener.onRewardedAdVideoStarted();
+            // Catch all error callback, display failure callback. Ex: when a webview crashes, something crashes on the JS side, or the video stops playing midway. Implementation is not complete in the SDK
+            e( "Rewarded ad display failed" );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed" ) );
         }
 
         @Override
-        public void onAdClicked(final View view)
+        public void onAdOpen(final ApsAd apsAd)
+        {
+            d( "Rewarded ad did open" );
+        }
+
+        @Override
+        public void onAdClicked(final ApsAd apsAd)
         {
             d( "Rewarded ad clicked" );
             listener.onRewardedAdClicked();
         }
 
         @Override
-        public void onVideoCompleted(final View view)
+        public void onVideoCompleted(final ApsAd apsAd)
         {
             d( "Rewarded ad video completed" );
             hasGrantedReward = true;
-            listener.onRewardedAdVideoCompleted();
         }
 
         @Override
-        public void onAdClosed(final View view)
+        public void onAdClosed(final ApsAd apsAd)
         {
             d( "Rewarded ad closed" );
 
@@ -790,12 +857,6 @@ public class AmazonAdMarketplaceMediationAdapter
 
             listener.onRewardedAdHidden();
         }
-
-        @Override
-        public void onAdLeftApplication(final View view)
-        {
-            d( "Rewarded ad will leave application" );
-        }
     }
 
     /**
@@ -804,19 +865,18 @@ public class AmazonAdMarketplaceMediationAdapter
     private static class MediationHints
     {
         /**
-         * The bid info / mediation hints generated from Amazon's SDK.
+         * The ApsAd object generated from Amazon's SDK.
          */
-        private final String value;
-
+        private final DTBAdResponse dtbAdResponse;
         /**
          * The unique identifier for this instance of the mediation hints.
          */
-        private final String id;
+        private final String        id;
 
-        private MediationHints(final String value)
+        private MediationHints(final DTBAdResponse dtbAdResponse)
         {
             this.id = UUID.randomUUID().toString().toLowerCase( Locale.US );
-            this.value = value;
+            this.dtbAdResponse = dtbAdResponse;
         }
 
         @Override
@@ -829,14 +889,14 @@ public class AmazonAdMarketplaceMediationAdapter
 
             if ( id != null ? !id.equals( mediationHints.id ) : mediationHints.id != null )
                 return false;
-            return value != null ? value.equals( mediationHints.value ) : mediationHints.value == null;
+            return dtbAdResponse != null ? dtbAdResponse.equals( mediationHints.dtbAdResponse ) : mediationHints.dtbAdResponse == null;
         }
 
         @Override
         public int hashCode()
         {
             int result = id != null ? id.hashCode() : 0;
-            result = 31 * result + ( value != null ? value.hashCode() : 0 );
+            result = 31 * result + ( dtbAdResponse != null ? dtbAdResponse.hashCode() : 0 );
             return result;
         }
 
@@ -846,7 +906,7 @@ public class AmazonAdMarketplaceMediationAdapter
         {
             return "MediationHints{" +
                     "id=" + id +
-                    ", value=" + value +
+                    ", dtbAdResponse=" + dtbAdResponse +
                     '}';
         }
     }
@@ -878,5 +938,5 @@ public class AmazonAdMarketplaceMediationAdapter
         }
     }
 
-
 }
+

@@ -3,26 +3,26 @@ plugins {
     id("maven-publish")
 }
 
-private val versionMajor = 5
-private val versionMinor = 0
-private val versionPatch = 3
+private val versionMajor = 4
+private val versionMinor = 7
+private val versionPatch = 0
 private val versionAdapterPatch = 0
 
 val libraryVersionName by extra("${versionMajor}.${versionMinor}.${versionPatch}.${versionAdapterPatch}")
 val libraryVersionCode by extra((versionMajor * 1000000) + (versionMinor * 10000) + (versionPatch * 100) + versionAdapterPatch)
 
-val libraryArtifactId by extra("criteo-adapter")
+val libraryArtifactId by extra("bigoads-adapter")
 val libraryGroupId by extra("com.applovin.mediation")
 
 var libraryVersions = rootProject.extra["versions"] as Map<*, *>
 
+android.namespace = "com.applovin.mediation.adapters.bigoads"
 android.defaultConfig.versionCode = libraryVersionCode
 android.defaultConfig.versionName = libraryVersionName
 
 dependencies {
-    implementation("com.criteo.publisher:criteo-publisher-sdk:${libraryVersions["criteo"]}")
-    implementation("com.google.android.gms:play-services-ads-identifier:${libraryVersions["playServicesIdentifier"]}")
-    implementation("com.google.android.gms:play-services-base:${libraryVersions["playServicesBase"]}")
+    implementation("com.bigossp:bigo-ads:${libraryVersions["bigoAds"]}")
+    implementation("androidx.annotation:annotation:1.5.0")
 }
 
 publishing {
@@ -32,7 +32,7 @@ publishing {
             pom.withXml {
                 asNode().apply {
                     appendNode("name", libraryArtifactId)
-                    appendNode("description", "Criteo adapter for AppLovin MAX mediation")
+                    appendNode("description", "Bigo Ads adapter for AppLovin MAX mediation")
                     appendNode("url", "https://www.applovin.com/")
                     appendNode("licenses")
                             .appendNode("license").apply {
@@ -49,12 +49,12 @@ publishing {
                                 appendNode("name", "AppLovin")
                                 appendNode("url", "https://www.applovin.com")
                             }
-                    // Add Criteo to list of dependencies.
+                    // Add Bigo Ads network to list of dependencies.
                     appendNode("dependencies")
                             .appendNode("dependency").apply {
-                                appendNode("groupId", "com.criteo.publisher")
-                                appendNode("artifactId", "criteo-publisher-sdk")
-                                appendNode("version", libraryVersions["criteo"])
+                                appendNode("groupId", "com.bigossp")
+                                appendNode("artifactId", "bigo-ads")
+                                appendNode("version", libraryVersions["bigoAds"])
                                 appendNode("scope", "compile")
                             }
                 }

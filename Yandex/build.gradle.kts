@@ -3,9 +3,9 @@ plugins {
     id("maven-publish")
 }
 
-private val versionMajor = 6
-private val versionMinor = 1
-private val versionPatch = 0
+private val versionMajor = 7
+private val versionMinor = 0
+private val versionPatch = 1
 private val versionAdapterPatch = 0
 
 val libraryVersionName by extra("${versionMajor}.${versionMinor}.${versionPatch}.${versionAdapterPatch}")
@@ -16,15 +16,18 @@ val libraryGroupId by extra("com.applovin.mediation")
 
 var libraryVersions = rootProject.extra["versions"] as Map<*, *>
 
+android.namespace = "com.applovin.mediation.adapters.yandex"
 android.defaultConfig.versionCode = libraryVersionCode
 android.defaultConfig.versionName = libraryVersionName
+
 // Ignore lint error that Yandex throws when incorrectly parsing their SDK version below.
-android.lintOptions.isAbortOnError = false
+android.lint.abortOnError = false
 
 // Suppress lint because Gradle does not detect the correct `yandex` version
 @Suppress("MobileAdsSdkOutdatedVersion") dependencies {
     implementation("com.yandex.android:mobileads:${libraryVersions["yandex"]}")
-    implementation("com.yandex.android:mobmetricalib:${libraryVersions["yandexMobmetrica"]}")
+    implementation("io.appmetrica.analytics:analytics:${libraryVersions["yandexAppMetrica"]}")
+    compileOnly("com.android.support:support-annotations:${libraryVersions["annotation"]}")
 }
 
 publishing {
@@ -60,9 +63,9 @@ publishing {
                             appendNode("scope", "compile")
                         }
                         appendNode("dependency").apply {
-                            appendNode("groupId", "com.yandex.android")
-                            appendNode("artifactId", "mobmetricalib")
-                            appendNode("version", libraryVersions["yandexMobmetrica"])
+                            appendNode("groupId", "io.appmetrica.analytics")
+                            appendNode("artifactId", "analytics")
+                            appendNode("version", libraryVersions["yandexAppMetrica"])
                             appendNode("scope", "compile")
                         }
                     }

@@ -309,7 +309,6 @@ public class InneractiveMediationAdapter
             public void onCompleted()
             {
                 log( "Rewarded video completed" );
-                listener.onRewardedAdVideoCompleted();
             }
 
             @Override
@@ -345,9 +344,6 @@ public class InneractiveMediationAdapter
                 {
                     listener.onRewardedAdDisplayed();
                 }
-
-                // `VideoContentListener.onProgress()` is called before this
-                listener.onRewardedAdVideoStarted();
             }
 
             @Override
@@ -594,6 +590,7 @@ public class InneractiveMediationAdapter
         // Overwritten by `mute_state` setting, unless `mute_state` is disabled
         if ( serverParameters.containsKey( "is_muted" ) ) // Introduced in 9.10.0
         {
+            // NOTE: Does not work for rewarded ads
             InneractiveAdManager.setMuteVideo( serverParameters.getBoolean( "is_muted" ) );
         }
 
