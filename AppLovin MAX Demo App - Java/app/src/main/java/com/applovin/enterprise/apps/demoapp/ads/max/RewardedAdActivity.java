@@ -50,6 +50,15 @@ public class RewardedAdActivity
         rewardedAd.loadAd();
     }
 
+    @Override
+    protected void onDestroy()
+    {
+        super.onDestroy();
+
+        rewardedAd.setListener( null );
+        rewardedAd.setRevenueListener( null );
+    }
+
     public void onShowAdClicked(View view)
     {
         if ( rewardedAd.isReady() )

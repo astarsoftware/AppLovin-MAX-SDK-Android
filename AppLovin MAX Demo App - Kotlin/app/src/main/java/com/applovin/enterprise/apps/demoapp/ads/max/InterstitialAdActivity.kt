@@ -43,6 +43,13 @@ class InterstitialAdActivity : BaseAdActivity(),
         interstitialAd.loadAd()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+
+        interstitialAd.setListener(null)
+        interstitialAd.setRevenueListener(null)
+    }
+
     fun showAd(view: View) {
         if (interstitialAd.isReady) {
             interstitialAd.showAd()

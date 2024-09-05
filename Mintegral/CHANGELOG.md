@@ -1,5 +1,35 @@
 # Changelog
 
+## 16.8.41.0
+* Certified with Mintegral SDK 16.8.41.
+
+## 16.8.31.0
+* Certified with Mintegral SDK 16.8.31.
+
+## 16.8.21.0
+* Certified with Mintegral SDK 16.8.21.
+
+## 16.8.11.0
+* Certified with Mintegral SDK 16.8.11.
+
+## 16.7.91.0
+* Certified with Mintegral SDK 16.7.91.
+
+## 16.7.81.0
+* Certified with Mintegral SDK 16.7.81.
+
+## 16.7.71.0
+* Certified with Mintegral SDK 16.7.71.
+
+## 16.7.61.0
+* Certified with Mintegral SDK 16.7.61.
+
+## 16.7.51.0
+* Certified with Mintegral SDK 16.7.51.
+
+## 16.7.41.0
+* Certified with Mintegral SDK 16.7.41.
+
 ## 16.7.31.0
 * Certified with Mintegral SDK 16.7.31.
 
@@ -326,7 +356,7 @@
 
 ## 15.2.11.0
 * Certified with Mintegral SDK 15.2.11.
-* Update to use Mintegral `oversea` SDK from their private repository. 
+* Update to use Mintegral `oversea` SDK from their private repository.
 * Update 10000000 version check to 9140000.
 * Update initialization log.
 

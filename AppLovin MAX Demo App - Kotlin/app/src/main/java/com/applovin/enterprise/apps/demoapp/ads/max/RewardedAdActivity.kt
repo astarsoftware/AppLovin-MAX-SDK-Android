@@ -40,6 +40,13 @@ class RewardedAdActivity : BaseAdActivity(),
         rewardedAd.loadAd()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+
+        rewardedAd.setListener(null)
+        rewardedAd.setRevenueListener(null)
+    }
+
     fun showAd(view: View) {
         if (rewardedAd.isReady) {
             rewardedAd.showAd()

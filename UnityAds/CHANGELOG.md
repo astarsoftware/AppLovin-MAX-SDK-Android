@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.12.2.0
+* Certified with UnityAds SDK 4.12.2, which includes a fix for the initialization issue caused by missing ProGuard rules introduced in version 4.11.0.
+
+## 4.12.1.1
+* Downgrade UnityAds SDK to 4.10.0 due to an initialization issue introduced in version 4.11.0 caused by missing ProGuard rules.
+
+## 4.12.1.0
+* Certified with UnityAds SDK 4.12.1.
+
+## 4.12.0.0
+* Certified with UnityAds SDK 4.12.0.
+
+## 4.11.3.0
+* Certified with UnityAds SDK 4.11.3.
+* Remove deprecated callbacks `onRewardedAdVideoStarted()` and `onRewardedAdVideoCompleted()`.
+
 ## 4.10.0.0
 * Certified with UnityAds SDK 4.10.0.
 
@@ -77,7 +93,7 @@
 * Remove checks for UnityAds SDK being initialized before loading ads.
 
 ## 4.0.1.2
-* Add support for COPPA. 
+* Add support for COPPA.
 
 ## 4.0.1.1
 * Fix privacy consent by using `commit()` after each value is set to the metadata.
@@ -105,7 +121,7 @@
 * Certified with UnityAds SDK 3.7.2.
 
 ## 3.7.1.1
-* Fix signal collection by setting bidding meta data before initialization based on server parameters. 
+* Fix signal collection by setting bidding meta data before initialization based on server parameters.
 
 ## 3.7.1.0
 * Updated to use new APIs introduced in UnityAds SDK 3.7.0.

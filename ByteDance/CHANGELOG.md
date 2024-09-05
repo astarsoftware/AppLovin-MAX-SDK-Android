@@ -1,5 +1,42 @@
 # Changelog
 
+## 6.2.0.5.1
+* Load Pangle ads on a background thread to reduce ANRs on MAX SDK version 12.6.1 or higher.
+
+## 6.2.0.5.0
+* Certified with ByteDance SDK 6.2.0.5.
+
+## 6.2.0.4.0
+* Certified with ByteDance SDK 6.2.0.4.
+
+## 6.1.0.9.0
+* Certified with ByteDance SDK 6.1.0.9.
+
+## 6.1.0.8.0
+* Certified with ByteDance SDK 6.1.0.8.
+
+## 6.1.0.7.0
+* Certified with ByteDance SDK 6.1.0.7.
+
+## 6.1.0.6.0
+* Certified with ByteDance SDK 6.1.0.6.
+
+## 6.1.0.5.0
+* Certified with ByteDance SDK 6.1.0.5.
+
+## 6.0.0.5.0
+* Certified with ByteDance SDK 6.0.0.5.
+* Remove String validation for signal.
+
+## 5.9.1.1.0
+* Certified with ByteDance SDK 5.9.1.1.
+
+## 5.9.0.6.0
+* Certified with ByteDance SDK 5.9.0.6.
+
+## 5.9.0.5.0
+* Certified with ByteDance SDK 5.9.0.5.
+
 ## 5.9.0.4.0
 * Certified with ByteDance SDK 5.9.0.4.
 
@@ -349,7 +386,7 @@
 * Certified with ByteDance SDK 3.8.1.2.
 
 ## 3.8.1.1.1
-* Add error log when user fails to receive reward. 
+* Add error log when user fails to receive reward.
 
 ## 3.8.1.1.0
 * Certified with ByteDance SDK 3.8.1.1.

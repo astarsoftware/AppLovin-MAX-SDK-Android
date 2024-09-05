@@ -1,5 +1,17 @@
 # Changelog
 
+## 23.3.0.0
+* Certified with Google SDK 23.3.0.
+
+## 23.2.0.1
+* Add support for [inline adaptive banner ads](https://developers.applovin.com/en/android/ad-formats/banner-mrec-ads/#inline-adaptive-banners).
+
+## 23.2.0.0
+* Certified with Google SDK 23.2.0.
+
+## 23.1.0.0
+* Certified with Google SDK 23.1.0.
+
 ## 23.0.0.1
 * Update adaptive banner width calculation to always use `Display.getMetrics()` instead of using `WindowMetrics.getBounds()` when available. The latter returns the full width of the device instead of the app window.
 * Remove deprecated callbacks `onRewardedAdVideoStarted()`, `onRewardedAdVideoCompleted()`, `onRewardedInterstitialAdVideoStarted()` and `onRewardedInterstitialAdVideoCompleted`.
@@ -39,7 +51,7 @@
 * Certified with Google SDK 22.2.0.
 
 ## 22.1.0.4
-* Update CCPA state if granted mid-session. 
+* Update CCPA state if granted mid-session.
 
 ## 22.1.0.3
 * Re-enable support for adaptive banner traffic for Google bidding since their sizing issue is resolved.
@@ -233,7 +245,7 @@
 
 ## 20.0.0.0
 * Certified with Google SDK 20.0.0.
-* Remove `setIsDesignedForFamilies()` method. As a result `is_designed_for_families` is not passed to Google anymore. 
+* Remove `setIsDesignedForFamilies()` method. As a result `is_designed_for_families` is not passed to Google anymore.
 
 ## 19.8.0.0
 * Certified with Google SDK 19.8.0.

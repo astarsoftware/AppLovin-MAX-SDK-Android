@@ -1,8 +1,18 @@
 # Changelog
 
+## 8.2.1.0.0
+* Certified with IronSource SDK 8.2.1.
+
+## 8.1.0.0.1
+* Add support for bidding.
+
+## 8.1.0.0.0
+* Certified with IronSource SDK 8.1.0.
+
 ## 8.0.0.0.0
 * Certified with IronSource SDK 8.0.0.
 * Remove deprecated callbacks `onRewardedAdVideoStarted()` and `onRewardedAdVideoCompleted()`.
+* Requires minimum Android API level be 19 or higher.
 
 ## 7.9.0.0.0
 * Certified with IronSource SDK 7.9.0.
@@ -25,7 +35,7 @@
 * Certified with IronSource SDK 7.5.2.
 
 ## 7.5.1.0.1
-* Set `is_deviceid_optout` parameter for COPPA end users. 
+* Set `is_deviceid_optout` parameter for COPPA end users.
 
 ## 7.5.1.0.0
 * Certified with IronSource SDK 7.5.1.

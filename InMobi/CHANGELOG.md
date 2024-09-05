@@ -1,5 +1,21 @@
 # Changelog
 
+## 10.7.7.0
+* Certified with InMobi SDK 10.7.7.
+
+## 10.7.6.0
+* Certified with InMobi SDK 10.7.6.
+
+## 10.7.5.0
+* Certified with InMobi SDK 10.7.5.
+
+## 10.7.4.0
+* Certified with InMobi SDK 10.7.4.
+
+## 10.7.3.0
+* Certified with InMobi SDK 10.7.3.
+* Remove deprecated callbacks `onRewardedAdVideoStarted()` and `onRewardedAdVideoCompleted()`.
+
 ## 10.6.7.0
 * Certified with InMobi SDK 10.6.7.
 
@@ -233,7 +249,7 @@
 * Updated to not set privacy settings if null.
 
 ## 9.0.7.1
-* Changed signal collecting ad objects from method level to class level. 
+* Changed signal collecting ad objects from method level to class level.
 
 ## 9.0.7.0
 * Certified with InMobi SDK 9.0.7.

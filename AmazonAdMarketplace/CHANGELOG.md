@@ -1,5 +1,17 @@
 # Changelog
 
+## 9.10.2.0
+* Certified with AmazonAdMarketplace SDK 9.10.2.
+
+## 9.10.1.1
+* Remove the listener display failed callback in `onAdError()` because `onAdError()` is sometimes fired when ad display is successful.
+
+## 9.10.1.0
+* Certified with AmazonAdMarketplace SDK 9.10.1.
+
+## 9.10.0.0
+* Certified with AmazonAdMarketplace SDK 9.10.0.
+
 ## 9.9.5.0
 * Certified with AmazonAdMarketplace SDK 9.9.5.
 

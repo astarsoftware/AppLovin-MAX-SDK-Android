@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.4.0
+* Certified with Verve SDK 3.0.4.
+
+## 3.0.2.0
+* Certified with Verve SDK 3.0.2.
+* Replace parameter type `Activity` with `Context` in `HyBidInterstitialAd()` and `HyBidRewardedAd()`.
+* Remove passing of `Activity` contexts into Verve APIs.
+
 ## 3.0.0.0
 * Certified with Verve SDK 3.0.0.
 * Remove deprecated callbacks `onRewardedAdVideoStarted()` and `onRewardedAdVideoCompleted()`.

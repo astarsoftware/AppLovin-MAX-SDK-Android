@@ -241,6 +241,22 @@ public class ByteDanceMediationAdapter
         return BuildConfig.VERSION_NAME;
     }
 
+    // @Override
+    @Nullable
+    public Boolean shouldLoadAdsOnUiThread(final MaxAdFormat adFormat)
+    {
+        // Loading Pangle ads on the UI thread could result in ANRs
+        return false;
+    }
+
+    // @Override
+    @Nullable
+    public Boolean shouldShowAdsOnUiThread(final MaxAdFormat adFormat)
+    {
+        // Pangle requires fullscreen ads to be shown on the UI thread
+        return true;
+    }
+
     @Override
     public void onDestroy()
     {
@@ -275,16 +291,8 @@ public class ByteDanceMediationAdapter
             @Override
             public void onBiddingTokenCollected(final String biddingToken)
             {
-                if ( AppLovinSdkUtils.isValidString( biddingToken ) )
-                {
-                    log( "Signal collection successful" );
-                    callback.onSignalCollected( biddingToken );
-                }
-                else
-                {
-                    log( "Failed to collect signal" );
-                    callback.onSignalCollectionFailed( null );
-                }
+                log( "Signal collection successful" );
+                callback.onSignalCollected( biddingToken );
             }
         } );
     }
