@@ -1,12 +1,14 @@
 package com.applovin.mediation.adapters;
 
-import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThread;
 import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThreadDelayed;
 
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
 import android.text.TextUtils;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.amazon.aps.ads.Aps;
 import com.amazon.aps.ads.ApsAd;
@@ -55,11 +57,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
-import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThreadDelayed;
 
 /**
  * Created by Thomas So on December 9 2021
@@ -117,7 +114,7 @@ public class AmazonAdMarketplaceMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-       return "9.9.5.0";
+       return "9.10.2.0";
     }
 
     @Override
