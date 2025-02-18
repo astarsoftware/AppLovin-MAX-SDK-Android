@@ -42,12 +42,13 @@ import com.five_corp.ad.FiveAdNativeEventListener;
 import com.five_corp.ad.FiveAdState;
 import com.five_corp.ad.FiveAdVideoReward;
 import com.five_corp.ad.FiveAdVideoRewardEventListener;
-import com.five_corp.ad.NeedChildDirectedTreatment;
 import com.five_corp.ad.NeedGdprNonPersonalizedAdsTreatment;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import androidx.annotation.Nullable;
 
 public class LineMediationAdapter
         extends MediationAdapterBase
@@ -75,7 +76,7 @@ public class LineMediationAdapter
     }
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
         if ( INITIALIZED.compareAndSet( false, true ) )
         {
@@ -102,16 +103,6 @@ public class LineMediationAdapter
                 config.needGdprNonPersonalizedAdsTreatment = hasUserConsent ? NeedGdprNonPersonalizedAdsTreatment.FALSE : NeedGdprNonPersonalizedAdsTreatment.TRUE;
             }
 
-            //
-            // COPPA options
-            // NOTE: Adapter / mediated SDK has support for COPPA, but is not approved by Play Store and therefore will be filtered on COPPA traffic
-            // https://support.google.com/googleplay/android-developer/answer/9283445?hl=en
-            Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
-            if ( isAgeRestrictedUser != null )
-            {
-                config.needChildDirectedTreatment = isAgeRestrictedUser ? NeedChildDirectedTreatment.TRUE : NeedChildDirectedTreatment.FALSE;
-            }
-
             FiveAd.initialize( getApplicationContext(), config );
 
             onCompletionListener.onCompletion( InitializationStatus.INITIALIZED_UNKNOWN, null );
@@ -120,7 +111,6 @@ public class LineMediationAdapter
         {
             if ( FiveAd.isInitialized() )
             {
-                log( "Line SDK is already initialized" );
                 onCompletionListener.onCompletion( InitializationStatus.INITIALIZED_UNKNOWN, null );
             }
             else
@@ -141,7 +131,7 @@ public class LineMediationAdapter
     }
 
     @Override
-    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         String slotId = parameters.getThirdPartyAdPlacementId();
         log( "Loading interstitial ad for slot id: " + slotId + "..." );
@@ -155,7 +145,7 @@ public class LineMediationAdapter
     }
 
     @Override
-    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         String slotId = parameters.getThirdPartyAdPlacementId();
         log( "Showing interstitial ad for slot id: " + slotId + "..." );
@@ -164,7 +154,7 @@ public class LineMediationAdapter
     }
 
     @Override
-    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         String slotId = parameters.getThirdPartyAdPlacementId();
         log( "Loading rewarded ad for slot id: " + slotId + "..." );
@@ -178,7 +168,7 @@ public class LineMediationAdapter
     }
 
     @Override
-    public void showRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void showRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         String slotId = parameters.getThirdPartyAdPlacementId();
         log( "Showing rewarded ad for slot id: " + slotId + "..." );
@@ -188,7 +178,7 @@ public class LineMediationAdapter
     }
 
     @Override
-    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
     {
         boolean isNative = parameters.getServerParameters().getBoolean( "is_native" );
         String slotId = parameters.getThirdPartyAdPlacementId();
@@ -222,7 +212,7 @@ public class LineMediationAdapter
     }
 
     @Override
-    public void loadNativeAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxNativeAdAdapterListener listener)
+    public void loadNativeAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxNativeAdAdapterListener listener)
     {
         String slotId = parameters.getThirdPartyAdPlacementId();
         log( "Loading native ad for slot id: " + slotId + "..." );
@@ -648,10 +638,6 @@ public class LineMediationAdapter
 
                             // Backend will pass down `vertical` as the template to indicate using a vertical native template
                             final String templateName = BundleUtils.getString( "template", "", serverParameters );
-                            if ( templateName.contains( "vertical" ) && AppLovinSdk.VERSION_CODE < 9140500 )
-                            {
-                                log( "Vertical native banners are only supported on MAX SDK 9.14.5 and above. Default native template will be used." );
-                            }
 
                             final MaxNativeAdView maxNativeAdView;
                             // Fallback case to be removed when backend sends down full template names for vertical native ads
@@ -683,7 +669,7 @@ public class LineMediationAdapter
                             {
                                 clickableViews.add( maxNativeAdView.getIconImageView() );
                             }
-                            final View mediaContentView = ( AppLovinSdk.VERSION_CODE >= 11000000 ) ? maxNativeAdView.getMediaContentViewGroup() : maxNativeAdView.getMediaContentView();
+                            final View mediaContentView = maxNativeAdView.getMediaContentViewGroup();
                             if ( maxNativeAd.getMediaView() != null && mediaContentView != null )
                             {
                                 clickableViews.add( mediaContentView );
@@ -823,38 +809,6 @@ public class LineMediationAdapter
         }
 
         @Override
-        public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
-        {
-            final List<View> clickableViews = new ArrayList<>( 6 );
-            if ( AppLovinSdkUtils.isValidString( getTitle() ) && maxNativeAdView.getTitleTextView() != null )
-            {
-                clickableViews.add( maxNativeAdView.getTitleTextView() );
-            }
-            if ( AppLovinSdkUtils.isValidString( getAdvertiser() ) && maxNativeAdView.getAdvertiserTextView() != null )
-            {
-                clickableViews.add( maxNativeAdView.getAdvertiserTextView() );
-            }
-            if ( AppLovinSdkUtils.isValidString( getBody() ) && maxNativeAdView.getBodyTextView() != null )
-            {
-                clickableViews.add( maxNativeAdView.getBodyTextView() );
-            }
-            if ( AppLovinSdkUtils.isValidString( getCallToAction() ) && maxNativeAdView.getCallToActionButton() != null )
-            {
-                clickableViews.add( maxNativeAdView.getCallToActionButton() );
-            }
-            if ( getIcon() != null && maxNativeAdView.getIconImageView() != null )
-            {
-                clickableViews.add( maxNativeAdView.getIconImageView() );
-            }
-            if ( getMediaView() != null && maxNativeAdView.getMediaContentViewGroup() != null )
-            {
-                clickableViews.add( maxNativeAdView.getMediaContentViewGroup() );
-            }
-
-            prepareForInteraction( clickableViews, maxNativeAdView );
-        }
-
-        // @Override
         public boolean prepareForInteraction(final List<View> clickableViews, final ViewGroup container)
         {
             FiveAdNative nativeAd = LineMediationAdapter.this.nativeAd;

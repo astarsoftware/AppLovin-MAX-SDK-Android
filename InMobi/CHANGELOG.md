@@ -1,5 +1,27 @@
 # Changelog
 
+## 10.8.0.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+* Removed redundant log output when initialization was already completed.
+
+## 10.8.0.0
+* Certified with InMobi SDK 10.8.0.
+
+## 10.7.8.1
+* Add support for loading fullscreen ads without an `Activity` context.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 10.7.8.0
+* Certified with InMobi SDK 10.7.8.
+
+## 10.7.7.2
+* Fix firing click callback twice on single click for native ads.
+
+## 10.7.7.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Remove deprecated native API usages.
+
 ## 10.7.7.0
 * Certified with InMobi SDK 10.7.7.
 

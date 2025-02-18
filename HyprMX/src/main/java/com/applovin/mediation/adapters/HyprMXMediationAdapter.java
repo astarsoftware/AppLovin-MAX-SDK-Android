@@ -13,12 +13,15 @@ import com.applovin.mediation.adapter.MaxAdViewAdapter;
 import com.applovin.mediation.adapter.MaxAdapterError;
 import com.applovin.mediation.adapter.MaxInterstitialAdapter;
 import com.applovin.mediation.adapter.MaxRewardedAdapter;
+import com.applovin.mediation.adapter.MaxSignalProvider;
 import com.applovin.mediation.adapter.listeners.MaxAdViewAdapterListener;
 import com.applovin.mediation.adapter.listeners.MaxInterstitialAdapterListener;
 import com.applovin.mediation.adapter.listeners.MaxRewardedAdapterListener;
+import com.applovin.mediation.adapter.listeners.MaxSignalCollectionListener;
 import com.applovin.mediation.adapter.parameters.MaxAdapterInitializationParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
+import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkUtils;
 import com.hyprmx.android.sdk.banner.HyprMXBannerListener;
@@ -27,18 +30,24 @@ import com.hyprmx.android.sdk.banner.HyprMXBannerView;
 import com.hyprmx.android.sdk.consent.ConsentStatus;
 import com.hyprmx.android.sdk.core.HyprMX;
 import com.hyprmx.android.sdk.core.HyprMXErrors;
-import com.hyprmx.android.sdk.core.HyprMXState;
+import com.hyprmx.android.sdk.placement.HyprMXLoadAdListener;
 import com.hyprmx.android.sdk.placement.HyprMXRewardedShowListener;
 import com.hyprmx.android.sdk.placement.HyprMXShowListener;
 import com.hyprmx.android.sdk.placement.Placement;
 import com.hyprmx.android.sdk.utility.HyprMXLog;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 public class HyprMXMediationAdapter
         extends MediationAdapterBase
-        implements MaxAdViewAdapter, MaxInterstitialAdapter, MaxRewardedAdapter
+        implements MaxSignalProvider, MaxAdViewAdapter, MaxInterstitialAdapter, MaxRewardedAdapter
 {
+    private static final AtomicBoolean        initialized = new AtomicBoolean();
+    private static       InitializationStatus initializationStatus;
+
     private HyprMXBannerView adView;
     private Placement        interstitialAd;
     private Placement        rewardedAd;
@@ -76,10 +85,12 @@ public class HyprMXMediationAdapter
     }
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
-        if ( HyprMX.INSTANCE.getInitializationState() == HyprMXState.NOT_INITIALIZED )
+        if ( initialized.compareAndSet( false, true ) )
         {
+            initializationStatus = InitializationStatus.INITIALIZING;
+
             final String distributorId = parameters.getServerParameters().getString( "distributor_id" );
 
             log( "Initializing HyprMX SDK with distributor id: " + distributorId );
@@ -95,40 +106,41 @@ public class HyprMXMediationAdapter
                 if ( !initResult.isSuccess() )
                 {
                     log( "HyprMX SDK failed to initialize for distributorId: " + distributorId );
-                    onCompletionListener.onCompletion( InitializationStatus.INITIALIZED_FAILURE, initResult.getMessage() );
+                    initializationStatus = InitializationStatus.INITIALIZED_FAILURE;
+                    onCompletionListener.onCompletion( initializationStatus, initResult.getMessage() );
                     return;
                 }
 
                 log( "HyprMX SDK initialized for distributorId: " + distributorId );
-                onCompletionListener.onCompletion( InitializationStatus.INITIALIZED_SUCCESS, null );
+                initializationStatus = InitializationStatus.INITIALIZED_SUCCESS;
+                onCompletionListener.onCompletion( initializationStatus, null );
             } );
         }
         else
         {
-            if ( HyprMX.INSTANCE.getInitializationState() == HyprMXState.INITIALIZATION_COMPLETE )
-            {
-                onCompletionListener.onCompletion( InitializationStatus.INITIALIZED_SUCCESS, null );
-            }
-            else if ( HyprMX.INSTANCE.getInitializationState() == HyprMXState.INITIALIZATION_FAILED )
-            {
-                onCompletionListener.onCompletion( InitializationStatus.INITIALIZED_FAILURE, null );
-            }
-            else if ( HyprMX.INSTANCE.getInitializationState() == HyprMXState.INITIALIZING )
-            {
-                onCompletionListener.onCompletion( InitializationStatus.INITIALIZING, null );
-            }
-            else
-            {
-                onCompletionListener.onCompletion( InitializationStatus.INITIALIZED_UNKNOWN, null );
-            }
+            onCompletionListener.onCompletion( initializationStatus, null );
         }
     }
 
     @Override
-    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, @Nullable final Activity activity, final MaxSignalCollectionListener callback)
+    {
+        log( "Collecting signal..." );
+
+        updateUserConsent( parameters );
+
+        String signal = HyprMX.INSTANCE.sessionToken();
+        callback.onSignalCollected( signal );
+    }
+
+    @Override
+    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
     {
         final String placementId = parameters.getThirdPartyAdPlacementId();
-        log( "Loading " + adFormat.getLabel() + " AdView ad for placement: " + placementId + "..." );
+        final String bidResponse = parameters.getBidResponse();
+        final boolean isBidding = AppLovinSdkUtils.isValidString( bidResponse );
+
+        log( "Loading " + ( isBidding ? "bidding " : "" ) + adFormat.getLabel() + " AdView ad for placement: " + placementId + "..." );
 
         updateUserConsent( parameters );
 
@@ -146,7 +158,8 @@ public class HyprMXMediationAdapter
         AppLovinSdkUtils.Size size = adFormat.getSize();
         adView.setLayoutParams( new LinearLayout.LayoutParams( Math.round( size.getWidth() * displayMetrics.density ),
                                                                Math.round( size.getHeight() * displayMetrics.density ) ) );
-        adView.loadAd( isAdAvailable -> {
+
+        HyprMXLoadAdListener adViewAdLoadListener = isAdAvailable -> {
 
             if ( !isAdAvailable )
             {
@@ -157,20 +170,32 @@ public class HyprMXMediationAdapter
 
             log( "AdView loaded for placement: " + placementId );
             listener.onAdViewAdLoaded( adView );
-        } );
+        };
+
+        if ( isBidding )
+        {
+            adView.loadAd( bidResponse, adViewAdLoadListener );
+        }
+        else
+        {
+            adView.loadAd( adViewAdLoadListener );
+        }
     }
 
     @Override
-    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         final String placementId = parameters.getThirdPartyAdPlacementId();
-        log( "Loading interstitial ad for placement: " + placementId );
+        final String bidResponse = parameters.getBidResponse();
+        final boolean isBidding = AppLovinSdkUtils.isValidString( bidResponse );
+
+        log( "Loading " + ( isBidding ? "bidding " : "" ) + "interstitial ad for placement: " + placementId );
 
         updateUserConsent( parameters );
 
         interstitialAd = HyprMX.INSTANCE.getPlacement( placementId );
 
-        interstitialAd.loadAd( isAdAvailable -> {
+        HyprMXLoadAdListener interstitialAdLoadListener = isAdAvailable -> {
 
             if ( !isAdAvailable )
             {
@@ -181,11 +206,20 @@ public class HyprMXMediationAdapter
 
             log( "Interstitial ad loaded for placement: " + placementId );
             listener.onInterstitialAdLoaded();
-        } );
+        };
+
+        if ( isBidding )
+        {
+            interstitialAd.loadAd( bidResponse, interstitialAdLoadListener );
+        }
+        else
+        {
+            interstitialAd.loadAd( interstitialAdLoadListener );
+        }
     }
 
     @Override
-    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         final String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Showing interstitial ad for placement: " + placementId );
@@ -201,16 +235,19 @@ public class HyprMXMediationAdapter
     }
 
     @Override
-    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         final String placementId = parameters.getThirdPartyAdPlacementId();
-        log( "Loading rewarded ad for placement: " + placementId );
+        final String bidResponse = parameters.getBidResponse();
+        final boolean isBidding = AppLovinSdkUtils.isValidString( bidResponse );
+
+        log( "Loading " + ( isBidding ? "bidding " : "" ) + "rewarded ad for placement: " + placementId );
 
         updateUserConsent( parameters );
 
         rewardedAd = HyprMX.INSTANCE.getPlacement( placementId );
 
-        rewardedAd.loadAd( isAdAvailable -> {
+        HyprMXLoadAdListener rewardedAdLoadListener = isAdAvailable -> {
 
             if ( !isAdAvailable )
             {
@@ -221,11 +258,20 @@ public class HyprMXMediationAdapter
 
             log( "Rewarded ad loaded for placement: " + placementId );
             listener.onRewardedAdLoaded();
-        } );
+        };
+
+        if ( isBidding )
+        {
+            rewardedAd.loadAd( bidResponse, rewardedAdLoadListener );
+        }
+        else
+        {
+            rewardedAd.loadAd( rewardedAdLoadListener );
+        }
     }
 
     @Override
-    public void showRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void showRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         final String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Showing rewarded ad for placement: " + placementId );
@@ -284,12 +330,6 @@ public class HyprMXMediationAdapter
     {
         // NOTE: HyprMX requested to always set GDPR regardless of region.
         HyprMX.INSTANCE.setConsentStatus( getConsentStatus( parameters ) );
-
-        Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
-        if ( isAgeRestrictedUser != null )
-        {
-            HyprMX.INSTANCE.setAgeRestrictedUser( isAgeRestrictedUser );
-        }
     }
 
     private HyprMXBannerSize toAdSize(final MaxAdFormat adFormat)

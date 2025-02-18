@@ -1,5 +1,18 @@
 # Changelog
 
+## 6.0.1.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 6.0.1.0
+* Certified with OguryPresage SDK 6.0.1.
+
+## 6.0.0.1
+* Fix missing MAX SDK name and version for AdView ad requests.
+
+## 6.0.0.0
+* Certified with OguryPresage SDK 6.0.0.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
 ## 5.8.0.0
 * Certified with OguryPresage SDK 5.8.0.
 * Add support for passing in MAX SDK name and version.

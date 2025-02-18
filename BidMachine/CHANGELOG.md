@@ -1,5 +1,28 @@
 # Changelog
 
+## 3.2.0.0
+* Certified with BidMachine SDK 3.2.0.
+
+## 3.1.1.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 3.1.1.0
+* Certified with BidMachine SDK 3.1.1.
+* Removed redundant log output when initialization was already completed.
+
+## 3.1.0.0
+* Certified with BidMachine SDK 3.1.0.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 3.0.1.2
+* Add AppLovin MAX SDK version 13.0.0+ as a maven dependency.
+
+## 3.0.1.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Remove deprecated native API usages.
+* Certified with BidMachine SDK 3.0.1.
+
 ## 3.0.0.0
 * Certified with BidMachine SDK 3.0.0.
 * Requires minimum Android API level be 21 or higher.

@@ -1,6 +1,7 @@
 package com.applovin.mediation.adapters;
 
 import android.app.Activity;
+import android.app.Application;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -36,9 +37,9 @@ import com.applovin.sdk.AppLovinSdkUtils;
 import com.mbridge.msdk.MBridgeConstans;
 import com.mbridge.msdk.MBridgeSDK;
 import com.mbridge.msdk.foundation.same.net.Aa;
-import com.mbridge.msdk.interstitialvideo.out.InterstitialVideoListener;
-import com.mbridge.msdk.interstitialvideo.out.MBBidInterstitialVideoHandler;
-import com.mbridge.msdk.interstitialvideo.out.MBInterstitialVideoHandler;
+import com.mbridge.msdk.newinterstitial.out.MBBidNewInterstitialHandler;
+import com.mbridge.msdk.newinterstitial.out.MBNewInterstitialHandler;
+import com.mbridge.msdk.newinterstitial.out.NewInterstitialListener;
 import com.mbridge.msdk.mbbid.out.BidConstants;
 import com.mbridge.msdk.mbbid.out.BidManager;
 import com.mbridge.msdk.nativex.view.MBMediaView;
@@ -60,6 +61,7 @@ import com.mbridge.msdk.out.NativeListener;
 import com.mbridge.msdk.out.OnMBMediaViewListener;
 import com.mbridge.msdk.out.RewardInfo;
 import com.mbridge.msdk.out.RewardVideoListener;
+import com.mbridge.msdk.out.SDKInitStatusListener;
 import com.mbridge.msdk.widget.MBAdChoice;
 
 import java.lang.reflect.Method;
@@ -81,6 +83,7 @@ public class MintegralMediationAdapter
 {
     private static final MintegralMediationAdapterRouter router;
     private static final AtomicBoolean                   initialized = new AtomicBoolean();
+    private static       InitializationStatus            status;
     private static final ExecutorService                 executor    = Executors.newCachedThreadPool();
 
     private static final String APP_ID_PARAMETER  = "app_id";
@@ -119,27 +122,27 @@ public class MintegralMediationAdapter
     private static final int DEFAULT_IMAGE_TASK_TIMEOUT_SECONDS = 5; // Mintegral ad load timeout is 10s, so this is 5s.
 
     // Mintegral suggested we keep a map of unit id -> handler to prevent re-creation / high error rates - https://app.asana.com/0/573104092700345/1166998599374502
-    private static final Map<String, MBInterstitialVideoHandler>    mbInterstitialVideoHandlers    = new HashMap<>();
-    private static final Map<String, MBBidInterstitialVideoHandler> mbBidInterstitialVideoHandlers = new HashMap<>();
-    private static final Map<String, MBRewardVideoHandler>          mbRewardVideoHandlers          = new HashMap<>();
-    private static final Map<String, MBBidRewardVideoHandler>       mbBidRewardVideoHandlers       = new HashMap<>();
+    private static final Map<String, MBNewInterstitialHandler>    mbInterstitialVideoHandlers    = new HashMap<>();
+    private static final Map<String, MBBidNewInterstitialHandler> mbBidInterstitialVideoHandlers = new HashMap<>();
+    private static final Map<String, MBRewardVideoHandler>        mbRewardVideoHandlers          = new HashMap<>();
+    private static final Map<String, MBBidRewardVideoHandler>     mbBidRewardVideoHandlers       = new HashMap<>();
 
     // Used by the mediation adapter router
     private String mbUnitId;
 
     // Supports video, interactive, and banner ad formats
-    private MBInterstitialVideoHandler    mbInterstitialVideoHandler;
-    private MBBidInterstitialVideoHandler mbBidInterstitialVideoHandler;
-    private MBSplashHandler               mbSplashHandler;
-    private MBRewardVideoHandler          mbRewardVideoHandler;
-    private MBBidRewardVideoHandler       mbBidRewardVideoHandler;
-    private MBBannerView                  mbBannerView;
-    private MBBidNativeHandler            mbBidNativeHandler;
-    private MBBidNativeHandler            mbBidNativeAdViewHandler;
-    private Campaign                      nativeAdCampaign;
-    private ViewGroup                     nativeAdContainer;
-    private MaxNativeAd                   nativeAd;
-    private List<View>                    clickableViews;
+    private MBNewInterstitialHandler    mbInterstitialVideoHandler;
+    private MBBidNewInterstitialHandler mbBidInterstitialVideoHandler;
+    private MBSplashHandler             mbSplashHandler;
+    private MBRewardVideoHandler        mbRewardVideoHandler;
+    private MBBidRewardVideoHandler     mbBidRewardVideoHandler;
+    private MBBannerView                mbBannerView;
+    private MBBidNativeHandler          mbBidNativeHandler;
+    private MBBidNativeHandler          mbBidNativeAdViewHandler;
+    private Campaign                    nativeAdCampaign;
+    private ViewGroup                   nativeAdContainer;
+    private MaxNativeAd                 nativeAd;
+    private List<View>                  clickableViews;
 
     static
     {
@@ -150,12 +153,14 @@ public class MintegralMediationAdapter
     public MintegralMediationAdapter(final AppLovinSdk sdk) { super( sdk ); }
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
         MBridgeConstans.DEBUG = parameters.isTesting();
 
         if ( initialized.compareAndSet( false, true ) )
         {
+            status = InitializationStatus.INITIALIZING;
+
             // Set the channel code/id so that logs generated by Mintegral SDK can be attributed to MAX.
             setChannelCode();
 
@@ -165,37 +170,53 @@ public class MintegralMediationAdapter
 
             final MBridgeSDK mBridgeSDK = MBridgeSDKFactory.getMBridgeSDK();
 
-            final Context context = getContext( activity );
+            final Context applicationContext = getContext( activity );
 
             // Communicated over email, GDPR status can only be set before SDK initialization
             Boolean hasUserConsent = parameters.hasUserConsent();
             if ( hasUserConsent != null )
             {
                 int consent = hasUserConsent ? MBridgeConstans.IS_SWITCH_ON : MBridgeConstans.IS_SWITCH_OFF;
-                mBridgeSDK.setUserPrivateInfoType( context, MBridgeConstans.AUTHORITY_ALL_INFO, consent );
-                mBridgeSDK.setConsentStatus( context, consent );
+                mBridgeSDK.setConsentStatus( applicationContext, consent );
+            }
+            else
+            {
+                // Mintegral's SDK requires this API to be called for it to read the TCF string from device storage.
+                mBridgeSDK.setConsentStatus( applicationContext );
             }
 
             // Has to be _before_ their SDK init as well
             Boolean isDoNotSell = parameters.isDoNotSell();
             if ( isDoNotSell != null && isDoNotSell )
             {
-                mBridgeSDK.setDoNotTrackStatus( context, true );
-            }
-
-            // Has to be _before_ their SDK init as well
-            Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
-            if ( isAgeRestrictedUser != null )
-            {
-                mBridgeSDK.setCoppaStatus( context, isAgeRestrictedUser );
+                mBridgeSDK.setDoNotTrackStatus( applicationContext, true );
             }
 
             // Mintegral Docs - "It is recommended to use the API in the main thread"
             Map<String, String> map = mBridgeSDK.getMBConfigurationMap( appId, appKey );
-            mBridgeSDK.init( map, context );
-        }
+            mBridgeSDK.init( map, (Application) applicationContext, new SDKInitStatusListener()
+            {
+                @Override
+                public void onInitSuccess()
+                {
+                    log( "SDK initialization successful" );
+                    status = InitializationStatus.INITIALIZED_SUCCESS;
+                    onCompletionListener.onCompletion( status, null );
+                }
 
-        onCompletionListener.onCompletion( InitializationStatus.DOES_NOT_APPLY, null );
+                @Override
+                public void onInitFail(String errorMessage)
+                {
+                    log( "SDK failed to initialize with message: " + errorMessage );
+                    status = InitializationStatus.INITIALIZED_FAILURE;
+                    onCompletionListener.onCompletion( status, errorMessage );
+                }
+            });
+        }
+        else
+        {
+            onCompletionListener.onCompletion( status, null );
+        }
     }
 
     @Override
@@ -289,7 +310,7 @@ public class MintegralMediationAdapter
     }
 
     @Override
-    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
+    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, @Nullable final Activity activity, final MaxSignalCollectionListener callback)
     {
         log( "Collecting signal..." );
 
@@ -317,7 +338,7 @@ public class MintegralMediationAdapter
     }
 
     @Override
-    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         // Overwritten by `mute_state` setting, unless `mute_state` is disabled
         final boolean shouldUpdateMuteState = parameters.getServerParameters().containsKey( "is_muted" ); // Introduced in 9.10.0
@@ -338,7 +359,7 @@ public class MintegralMediationAdapter
             }
             else
             {
-                mbBidInterstitialVideoHandler = new MBBidInterstitialVideoHandler( activity, placementId, mbUnitId );
+                mbBidInterstitialVideoHandler = new MBBidNewInterstitialHandler( getContext( activity ), placementId, mbUnitId );
                 mbBidInterstitialVideoHandlers.put( mbUnitId, mbBidInterstitialVideoHandler );
             }
 
@@ -359,7 +380,7 @@ public class MintegralMediationAdapter
             }
             else
             {
-                mbInterstitialVideoHandler = new MBInterstitialVideoHandler( activity, placementId, mbUnitId );
+                mbInterstitialVideoHandler = new MBNewInterstitialHandler( getContext( activity ), placementId, mbUnitId );
                 mbInterstitialVideoHandlers.put( mbUnitId, mbInterstitialVideoHandler );
             }
 
@@ -392,7 +413,7 @@ public class MintegralMediationAdapter
     }
 
     @Override
-    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         router.addShowingAdapter( this );
 
@@ -471,7 +492,7 @@ public class MintegralMediationAdapter
     }
 
     @Override
-    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         // Overwritten by `mute_state` setting, unless `mute_state` is disabled
         final boolean shouldUpdateMuteState = parameters.getServerParameters().containsKey( "is_muted" ); // Introduced in 9.10.0
@@ -492,7 +513,7 @@ public class MintegralMediationAdapter
             }
             else
             {
-                mbBidRewardVideoHandler = new MBBidRewardVideoHandler( activity, placementId, mbUnitId );
+                mbBidRewardVideoHandler = new MBBidRewardVideoHandler( getContext( activity ), placementId, mbUnitId );
                 mbBidRewardVideoHandlers.put( mbUnitId, mbBidRewardVideoHandler );
             }
 
@@ -513,7 +534,7 @@ public class MintegralMediationAdapter
             }
             else
             {
-                mbRewardVideoHandler = new MBRewardVideoHandler( activity, placementId, mbUnitId );
+                mbRewardVideoHandler = new MBRewardVideoHandler( getContext( activity ), placementId, mbUnitId );
                 mbRewardVideoHandlers.put( mbUnitId, mbRewardVideoHandler );
             }
 
@@ -546,7 +567,7 @@ public class MintegralMediationAdapter
     }
 
     @Override
-    public void showRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void showRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         router.addShowingAdapter( this );
 
@@ -577,7 +598,7 @@ public class MintegralMediationAdapter
     }
 
     @Override
-    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
     {
         mbUnitId = parameters.getThirdPartyAdPlacementId();
         final String placementId = BundleUtils.getString( "placement_id", parameters.getServerParameters() );
@@ -685,7 +706,7 @@ public class MintegralMediationAdapter
     }
 
     @Override
-    public void loadNativeAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxNativeAdAdapterListener listener)
+    public void loadNativeAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxNativeAdAdapterListener listener)
     {
         mbUnitId = parameters.getThirdPartyAdPlacementId();
         final String placementId = BundleUtils.getString( "placement_id", parameters.getServerParameters() );
@@ -723,18 +744,6 @@ public class MintegralMediationAdapter
             return new MaxNativeAdView( maxNativeAd,
                                         AppLovinSdkUtils.isValidString( templateName ) ? templateName : "media_banner_template",
                                         context );
-        }
-    }
-
-    private ExecutorService getExecutorServiceToUse()
-    {
-        if ( AppLovinSdk.VERSION_CODE >= 11_00_00_00 )
-        {
-            return getCachingExecutorService();
-        }
-        else
-        {
-            return executor;
         }
     }
 
@@ -803,7 +812,7 @@ public class MintegralMediationAdapter
         return new MaxAdapterError( adapterError.getErrorCode(), adapterError.getErrorMessage(), 0, mintegralError );
     }
 
-    private Context getContext(Activity activity)
+    private Context getContext(@Nullable final Activity activity)
     {
         // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
         return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
@@ -866,17 +875,24 @@ public class MintegralMediationAdapter
     private static class MintegralMediationAdapterRouter
             extends MediationAdapterRouter
     {
-        private final InterstitialVideoListener interstitialVideoListener = new InterstitialVideoListener()
+        private final NewInterstitialListener interstitialVideoListener = new NewInterstitialListener()
         {
             @Override
-            public void onVideoLoadSuccess(final MBridgeIds mBridgeIds)
+            public void onLoadCampaignSuccess(final MBridgeIds mBridgeIds)
             {
-                // Ad has loaded and video has been downloaded
-                log( "Interstitial successfully loaded and video has been downloaded for: " + mBridgeIds );
+                // Ad has filled
+                log( "Interstitial successfully loaded for: " + mBridgeIds );
+            }
+
+            @Override
+            public void onResourceLoadSuccess(final MBridgeIds mBridgeIds)
+            {
+                // Ad resources have downloaded successfully and ad is ready to show
+                log( "Interstitial resources downloaded successfully: " + mBridgeIds );
 
                 String unitId = mBridgeIds.getUnitId();
-                MBInterstitialVideoHandler mbInterstitialVideoHandler = MintegralMediationAdapter.mbInterstitialVideoHandlers.get( unitId );
-                MBBidInterstitialVideoHandler mbBidInterstitialVideoHandler = MintegralMediationAdapter.mbBidInterstitialVideoHandlers.get( unitId );
+                MBNewInterstitialHandler mbInterstitialVideoHandler = MintegralMediationAdapter.mbInterstitialVideoHandlers.get( unitId );
+                MBBidNewInterstitialHandler mbBidInterstitialVideoHandler = MintegralMediationAdapter.mbBidInterstitialVideoHandlers.get( unitId );
 
                 String creativeId;
                 if ( mbBidInterstitialVideoHandler != null )
@@ -902,14 +918,7 @@ public class MintegralMediationAdapter
             }
 
             @Override
-            public void onLoadSuccess(final MBridgeIds mBridgeIds)
-            {
-                // Ad has loaded but video still needs to be downloaded
-                log( "Interstitial successfully loaded but video still needs to be downloaded for: " + mBridgeIds );
-            }
-
-            @Override
-            public void onVideoLoadFail(final MBridgeIds mBridgeIds, String errorMsg)
+            public void onResourceLoadFail(final MBridgeIds mBridgeIds, String errorMsg)
             {
                 log( "Interstitial failed to load: " + errorMsg + " for: " + mBridgeIds );
                 onAdLoadFailed( mBridgeIds.getUnitId(), toMaxError( errorMsg ) );
@@ -931,10 +940,12 @@ public class MintegralMediationAdapter
             }
 
             @Override
-            public void onVideoAdClicked(final MBridgeIds mBridgeIds)
+            public void onAdClicked(final MBridgeIds mBridgeIds)
             {
                 log( "Interstitial clicked" );
-                onAdClicked( mBridgeIds.getUnitId() );
+
+                // Explicitly call `MintegralMediationAdapterRouter` since click callback is named the same for Mintegral and AppLovin.
+                MintegralMediationAdapterRouter.this.onAdClicked( mBridgeIds.getUnitId() );
             }
 
             @Override
@@ -951,7 +962,7 @@ public class MintegralMediationAdapter
             }
 
             @Override
-            public void onAdCloseWithIVReward(final MBridgeIds mBridgeIds, RewardInfo rewardInfo)
+            public void onAdCloseWithNIReward(final MBridgeIds mBridgeIds, RewardInfo rewardInfo)
             {
                 log( "Interstitial with reward hidden" );
             }
@@ -1067,7 +1078,7 @@ public class MintegralMediationAdapter
             }
         };
 
-        InterstitialVideoListener getInterstitialListener()
+        NewInterstitialListener getInterstitialListener()
         {
             return interstitialVideoListener;
         }
@@ -1078,7 +1089,7 @@ public class MintegralMediationAdapter
         }
 
         //TODO: marked for deletion, pending SDK change.
-        void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener) { }
+        void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener) { }
     }
 
     private class AppOpenAdListener
@@ -1223,7 +1234,7 @@ public class MintegralMediationAdapter
             nativeAdCampaign = campaign;
             log( "Native " + adFormat.getLabel() + " ad loaded for unit id: " + unitId + " placement id: " + placementId );
 
-            getExecutorServiceToUse().submit( new Runnable()
+            getCachingExecutorService().submit( new Runnable()
             {
                 @Override
                 public void run()
@@ -1494,7 +1505,7 @@ public class MintegralMediationAdapter
 
         private void processNativeAd(final Campaign campaign)
         {
-            getExecutorServiceToUse().submit( new Runnable()
+            getCachingExecutorService().submit( new Runnable()
             {
                 @Override
                 public void run()
@@ -1572,12 +1583,6 @@ public class MintegralMediationAdapter
         public MaxMintegralNativeAd(final Builder builder) { super( builder ); }
 
         @Override
-        public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
-        {
-            prepareForInteraction( MintegralMediationAdapter.this.getClickableViews( maxNativeAdView ), maxNativeAdView );
-        }
-
-        // @Override
         public boolean prepareForInteraction(final List<View> clickableViews, final ViewGroup container)
         {
             final Campaign nativeAdCampaign = MintegralMediationAdapter.this.nativeAdCampaign;

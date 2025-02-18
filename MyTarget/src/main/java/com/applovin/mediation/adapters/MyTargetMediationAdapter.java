@@ -28,7 +28,6 @@ import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
 import com.applovin.mediation.adapters.mytarget.BuildConfig;
 import com.applovin.mediation.nativeAds.MaxNativeAd;
-import com.applovin.mediation.nativeAds.MaxNativeAdView;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkUtils;
 import com.my.target.ads.InterstitialAd;
@@ -49,11 +48,11 @@ import com.my.target.nativeads.factories.NativeViewsFactory;
 import com.my.target.nativeads.views.MediaAdView;
 import com.my.target.nativeads.views.NativeAdView;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 /**
  * Created by Lorenzo Gentile on 7/15/19.
@@ -116,7 +115,7 @@ public class MyTargetMediationAdapter
     }
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
         if ( initialized.compareAndSet( false, true ) )
         {
@@ -136,7 +135,7 @@ public class MyTargetMediationAdapter
     }
 
     @Override
-    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
+    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, @Nullable final Activity activity, final MaxSignalCollectionListener callback)
     {
         log( "Collecting signal..." );
 
@@ -148,12 +147,12 @@ public class MyTargetMediationAdapter
     }
 
     @Override
-    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         final int slotId = Integer.parseInt( parameters.getThirdPartyAdPlacementId() );
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + " interstitial ad for slot id: " + slotId + "..." );
 
-        interstitialAd = new InterstitialAd( slotId, activity );
+        interstitialAd = new InterstitialAd( slotId, getContext( activity ) );
         interstitialAd.setListener( new InterstitialListener( listener ) );
         interstitialAd.getCustomParams().setCustomParam( "mediation", "7" ); // MAX specific
         updatePrivacyStates( parameters );
@@ -170,7 +169,7 @@ public class MyTargetMediationAdapter
     }
 
     @Override
-    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         log( "Showing interstitial ad..." );
 
@@ -186,12 +185,12 @@ public class MyTargetMediationAdapter
     }
 
     @Override
-    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         final int slotId = Integer.parseInt( parameters.getThirdPartyAdPlacementId() );
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + " rewarded ad for slot id: " + slotId + "..." );
 
-        rewardedAd = new RewardedAd( slotId, activity );
+        rewardedAd = new RewardedAd( slotId, getContext( activity ) );
         rewardedAd.setListener( new RewardedAdListener( listener ) );
         rewardedAd.getCustomParams().setCustomParam( "mediation", "7" ); // MAX specific
         updatePrivacyStates( parameters );
@@ -209,7 +208,7 @@ public class MyTargetMediationAdapter
     }
 
     @Override
-    public void showRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void showRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         log( "Showing rewarded ad..." );
 
@@ -226,7 +225,7 @@ public class MyTargetMediationAdapter
     }
 
     @Override
-    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
     {
         final int slotId = Integer.parseInt( parameters.getThirdPartyAdPlacementId() );
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + " ad view with format: " + adFormat.getLabel() + " for slot id: " + slotId + "..." );
@@ -252,7 +251,7 @@ public class MyTargetMediationAdapter
     }
 
     @Override
-    public void loadNativeAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxNativeAdAdapterListener listener)
+    public void loadNativeAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxNativeAdAdapterListener listener)
     {
         final int slotId = Integer.parseInt( parameters.getThirdPartyAdPlacementId() );
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + " native ad for slot id: " + slotId + "..." );
@@ -284,14 +283,6 @@ public class MyTargetMediationAdapter
 
     private void updatePrivacyStates(final MaxAdapterParameters parameters)
     {
-        // NOTE: Adapter / mediated SDK has support for COPPA, but is not approved by Play Store and therefore will be filtered on COPPA traffic
-        // https://support.google.com/googleplay/android-developer/answer/9283445?hl=eno
-        Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
-        if ( isAgeRestrictedUser != null )
-        {
-            MyTargetPrivacy.setUserAgeRestricted( isAgeRestrictedUser );
-        }
-
         Boolean hasUserConsent = parameters.hasUserConsent();
         if ( hasUserConsent != null )
         {
@@ -305,7 +296,7 @@ public class MyTargetMediationAdapter
         }
     }
 
-    private Context getContext(Activity activity)
+    private Context getContext(@Nullable final Activity activity)
     {
         // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
         return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
@@ -409,6 +400,13 @@ public class MyTargetMediationAdapter
         }
 
         @Override
+        public void onFailedToShow(@NonNull final InterstitialAd interstitialAd)
+        {
+            log( "Interstitial ad display failed" );
+            listener.onInterstitialAdDisplayFailed( MaxAdapterError.AD_DISPLAY_FAILED );
+        }
+
+        @Override
         public void onClick(@NonNull final InterstitialAd interstitialAd)
         {
             log( "Interstitial clicked" );
@@ -460,6 +458,13 @@ public class MyTargetMediationAdapter
         {
             log( "Rewarded ad displayed" );
             listener.onRewardedAdDisplayed();
+        }
+
+        @Override
+        public void onFailedToShow(@NonNull final RewardedAd rewardedAd)
+        {
+            log( "Rewarded ad display failed" );
+            listener.onRewardedAdDisplayFailed( MaxAdapterError.AD_DISPLAY_FAILED );
         }
 
         @Override
@@ -687,38 +692,6 @@ public class MyTargetMediationAdapter
         private MaxMyTargetNativeAd(final Builder builder) { super( builder ); }
 
         @Override
-        public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
-        {
-            final List<View> clickableViews = new ArrayList<>( 6 );
-            if ( AppLovinSdkUtils.isValidString( getTitle() ) && maxNativeAdView.getTitleTextView() != null )
-            {
-                clickableViews.add( maxNativeAdView.getTitleTextView() );
-            }
-            if ( AppLovinSdkUtils.isValidString( getAdvertiser() ) && maxNativeAdView.getAdvertiserTextView() != null )
-            {
-                clickableViews.add( maxNativeAdView.getAdvertiserTextView() );
-            }
-            if ( AppLovinSdkUtils.isValidString( getBody() ) && maxNativeAdView.getBodyTextView() != null )
-            {
-                clickableViews.add( maxNativeAdView.getBodyTextView() );
-            }
-            if ( AppLovinSdkUtils.isValidString( getCallToAction() ) && maxNativeAdView.getCallToActionButton() != null )
-            {
-                clickableViews.add( maxNativeAdView.getCallToActionButton() );
-            }
-            if ( getIcon() != null && maxNativeAdView.getIconImageView() != null )
-            {
-                clickableViews.add( maxNativeAdView.getIconImageView() );
-            }
-            if ( getMediaView() != null && maxNativeAdView.getMediaContentViewGroup() != null )
-            {
-                clickableViews.add( maxNativeAdView.getMediaContentViewGroup() );
-            }
-
-            prepareForInteraction( clickableViews, maxNativeAdView );
-        }
-
-        // @Override
         public boolean prepareForInteraction(final List<View> clickableViews, final ViewGroup container)
         {
             NativeAd nativeAd = MyTargetMediationAdapter.this.nativeAd;

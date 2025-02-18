@@ -1,5 +1,32 @@
 # Changelog
 
+## 8.3.6.0
+* Certified with Fyber SDK 8.3.6.
+
+## 8.3.5.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 8.3.5.0
+* Certified with Fyber SDK 8.3.5.
+
+## 8.3.4.0
+* Certified with Fyber SDK 8.3.4.
+* Removed redundant log output when initialization was already completed.
+
+## 8.3.3.0
+* Certified with Fyber SDK 8.3.3.
+
+## 8.3.2.0
+* Certified with Fyber SDK 8.3.2.
+
+## 8.3.1.2
+* Fix NPE when binding `adViewGroup` after it has been destroyed.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 8.3.1.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+
 ## 8.3.1.0
 * Certified with Fyber SDK 8.3.1.
 

@@ -64,9 +64,10 @@ public class IronSourceMediationAdapter
         extends MediationAdapterBase
         implements MaxSignalProvider, MaxInterstitialAdapter, MaxRewardedAdapter, MaxAdViewAdapter
 {
-    private static final IronSourceRouter ROUTER                           = new IronSourceRouter();
-    private static final AtomicBoolean    INITIALIZED                      = new AtomicBoolean();
-    private static final List<String>     loadedAdViewPlacementIdentifiers = Collections.synchronizedList( new ArrayList<>() );
+    private static final IronSourceRouter       ROUTER                           = new IronSourceRouter();
+    private static final AtomicBoolean          INITIALIZED                      = new AtomicBoolean();
+    private static final List<String>           loadedAdViewPlacementIdentifiers = Collections.synchronizedList( new ArrayList<>() );
+    private static       InitializationStatus   status;
 
     private String                   mRouterPlacementIdentifier;
     @Nullable
@@ -85,17 +86,16 @@ public class IronSourceMediationAdapter
     //region MaxAdapter Methods
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
         if ( INITIALIZED.compareAndSet( false, true ) )
         {
+            status = InitializationStatus.INITIALIZING;
+
             final String appKey = parameters.getServerParameters().getString( "app_key" );
             log( "Initializing IronSource SDK with app key: " + appKey + "..." );
 
-            if ( parameters.getServerParameters().getBoolean( "set_mediation_identifier" ) )
-            {
-                IronSource.setMediationType( mediationTag() );
-            }
+            IronSource.setMediationType( "MAX" + getAdapterVersionCode() + "SDK" + AppLovinSdk.VERSION_CODE );
 
             setPrivacySettings( parameters );
 
@@ -104,13 +104,6 @@ public class IronSourceMediationAdapter
             {
                 // NOTE: `setMetaData` must be called _before_ initializing their SDK
                 IronSource.setMetaData( "do_not_sell", Boolean.toString( isDoNotSell ) );
-            }
-
-            Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
-            if ( isAgeRestrictedUser != null )
-            {
-                IronSource.setMetaData( "is_deviceid_optout", Boolean.toString( isAgeRestrictedUser ) );
-                IronSource.setMetaData( "is_child_directed", Boolean.toString( isAgeRestrictedUser ) );
             }
 
             IronSource.setAdaptersDebug( parameters.isTesting() );
@@ -125,16 +118,22 @@ public class IronSourceMediationAdapter
                 public void onInitSuccess()
                 {
                     log( "IronSource SDK initialized." );
-                    onCompletionListener.onCompletion( InitializationStatus.INITIALIZED_SUCCESS, null );
+                    status = InitializationStatus.INITIALIZED_SUCCESS;
+                    onCompletionListener.onCompletion( status, null );
                 }
 
                 @Override
                 public void onInitFailed(@NonNull final IronSourceError ironSourceError)
                 {
                     log( "Failed to initialize IronSource SDK with error: " + ironSourceError );
-                    onCompletionListener.onCompletion( InitializationStatus.INITIALIZED_FAILURE, ironSourceError.getErrorMessage() );
+                    status = InitializationStatus.INITIALIZED_FAILURE;
+                    onCompletionListener.onCompletion( status, ironSourceError.getErrorMessage() );
                 }
             } );
+        }
+        else
+        {
+            onCompletionListener.onCompletion( status, null );
         }
     }
 
@@ -191,7 +190,7 @@ public class IronSourceMediationAdapter
     //region MaxSignalProvider Methods
 
     @Override
-    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
+    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, @Nullable final Activity activity, final MaxSignalCollectionListener callback)
     {
         log( "Collecting signal..." );
 
@@ -206,7 +205,7 @@ public class IronSourceMediationAdapter
     //region MaxInterstitialAdapter Methods
 
     @Override
-    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         setPrivacySettings( parameters );
 
@@ -235,13 +234,14 @@ public class IronSourceMediationAdapter
             }
             else
             {
+                // Tested that ad still successfully loads with a `null` Activity
                 IronSource.loadISDemandOnlyInterstitial( activity, instanceId );
             }
         }
     }
 
     @Override
-    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         final String bidResponse = parameters.getBidResponse();
         final boolean isBiddingAd = AppLovinSdkUtils.isValidString( bidResponse );
@@ -255,6 +255,13 @@ public class IronSourceMediationAdapter
             {
                 log( "Unable to show ironSource interstitial - ad is not ready for instance ID: " + instanceId );
                 listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
+                return;
+            }
+
+            if ( activity == null )
+            {
+                log( "Interstitial ad display failed: Activity is null" );
+                listener.onInterstitialAdDisplayFailed( MaxAdapterError.MISSING_ACTIVITY );
                 return;
             }
 
@@ -281,7 +288,7 @@ public class IronSourceMediationAdapter
     //region MaxRewardedAdapter Methods
 
     @Override
-    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         setPrivacySettings( parameters );
 
@@ -294,9 +301,7 @@ public class IronSourceMediationAdapter
         if ( isBiddingAd )
         {
             RewardedAdRequest adRequest = new RewardedAdRequest.Builder( instanceId, bidResponse ).build();
-
             biddingRewardedListener = new BiddingRewardedListener( listener );
-
             RewardedAdLoader.loadAd( adRequest, biddingRewardedListener );
         }
         else
@@ -312,13 +317,14 @@ public class IronSourceMediationAdapter
             }
             else
             {
+                // Tested that ad still successfully loads with a `null` Activity
                 IronSource.loadISDemandOnlyRewardedVideo( activity, instanceId );
             }
         }
     }
 
     @Override
-    public void showRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void showRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         final String bidResponse = parameters.getBidResponse();
         final boolean isBiddingAd = AppLovinSdkUtils.isValidString( bidResponse );
@@ -332,6 +338,13 @@ public class IronSourceMediationAdapter
             {
                 log( "Unable to show ironSource rewarded - ad is not ready for instance ID: " + instanceId );
                 listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
+                return;
+            }
+
+            if ( activity == null )
+            {
+                log( "Rewarded ad display failed: Activity is null" );
+                listener.onRewardedAdDisplayFailed( MaxAdapterError.MISSING_ACTIVITY );
                 return;
             }
 
@@ -364,7 +377,7 @@ public class IronSourceMediationAdapter
     //region MaxAdViewAdapter Methods
 
     @Override
-    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
     {
         setPrivacySettings( parameters );
 
@@ -373,16 +386,22 @@ public class IronSourceMediationAdapter
 
         log( "Loading " + ( isBiddingAd ? "bidding " : "" ) + adFormat.getLabel() + " ad for instance ID: " + parameters.getThirdPartyAdPlacementId() );
 
-        adViewPlacementIdentifier = parameters.getThirdPartyAdPlacementId(); // Set it only if it is not an instance ID of an already loaded ad to avoid destroying the currently showing ad
-
         if ( isBiddingAd )
         {
             AdSize adSize = toISAdSize( adFormat );
-            BannerAdRequest bannerAdRequest = new BannerAdRequest.Builder( activity, adViewPlacementIdentifier, bidResponse, adSize ).build();
+            BannerAdRequest bannerAdRequest = new BannerAdRequest.Builder( getApplicationContext(), parameters.getThirdPartyAdPlacementId(), bidResponse, adSize ).build();
             BannerAdLoader.loadAd( bannerAdRequest, new BiddingAdViewListener( listener ) );
         }
         else
         {
+            if ( activity == null )
+            {
+                log( adFormat.getLabel() + " ad load failed: Activity is null" );
+                listener.onAdViewAdLoadFailed( MaxAdapterError.MISSING_ACTIVITY );
+
+                return;
+            }
+
             // IronSource does not support b2b with same instance ID for banners/MRECs
             if ( loadedAdViewPlacementIdentifiers.contains( parameters.getThirdPartyAdPlacementId() ) )
             {
@@ -392,6 +411,9 @@ public class IronSourceMediationAdapter
                 return;
             }
 
+            adViewPlacementIdentifier = parameters.getThirdPartyAdPlacementId(); // Set it only if it is not an instance ID of an already loaded ad to avoid destroying the currently showing ad
+
+            // If we pass in a null Activity, `createBannerForDemandOnly` will return null
             adView = IronSource.createBannerForDemandOnly( activity, toISBannerSize( adFormat ) );
             adView.setBannerDemandOnlyListener( new AdViewListener( listener ) );
 
@@ -571,7 +593,6 @@ public class IronSourceMediationAdapter
             case IronSourceError.ERROR_NO_INTERNET_CONNECTION:
                 adapterError = MaxAdapterError.NO_CONNECTION;
                 break;
-            case IronSourceError.ERROR_REACHED_CAP_LIMIT_PER_PLACEMENT:
             case IronSourceError.ERROR_CAPPED_PER_SESSION:
             case IronSourceError.ERROR_BN_LOAD_PLACEMENT_CAPPED:
                 adapterError = MaxAdapterError.AD_FREQUENCY_CAPPED;
@@ -612,6 +633,28 @@ public class IronSourceMediationAdapter
         return new MaxAdapterError( adapterError.getErrorCode(), adapterError.getErrorMessage(), ironSourceErrorCode, ironSourceError.getErrorMessage() );
     }
 
+    private long getAdapterVersionCode()
+    {
+        String simplifiedVersionString = getAdapterVersion().replaceAll( "[^0-9.]", "" );
+        String[] versionNumbers = simplifiedVersionString.split( "\\." );
+
+        long versionCode = 0;
+        for ( String num : versionNumbers )
+        {
+            versionCode *= 100;
+            if ( versionCode != 0 && num.length() > 2 )
+            {
+                versionCode += Integer.parseInt( num.substring( 0, 2 ) );
+            }
+            else
+            {
+                versionCode += num.isEmpty() ? 0 : Integer.parseInt( num );
+            }
+        }
+
+        return versionCode;
+    }
+
     //endregion
 
     //region IronSource Router
@@ -622,7 +665,7 @@ public class IronSourceMediationAdapter
     {
         private boolean hasGrantedReward;
 
-        void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener) { }
+        void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener) { }
 
         @Override
         public void onInterstitialAdReady(final String instanceId)

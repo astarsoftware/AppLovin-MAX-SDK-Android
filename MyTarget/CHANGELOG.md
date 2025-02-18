@@ -1,5 +1,36 @@
 # Changelog
 
+## 5.27.1.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 5.27.1.0
+* Certified with MyTarget SDK 5.27.1.
+
+## 5.27.0.0
+* Certified with MyTarget SDK 5.27.0.
+
+## 5.26.0.0
+* Certified with MyTarget SDK 5.26.0.
+
+## 5.25.0.0
+* Certified with MyTarget SDK 5.25.0.
+
+## 5.24.0.0
+* Certified with MyTarget SDK 5.24.0.
+
+## 5.23.0.0
+* Certified with MyTarget SDK 5.23.0.
+* Implement `onFailedToShow()` callbacks for interstitial and rewarded ads.
+
+## 5.22.1.2
+* Add support for loading fullscreen ads without an `Activity` context.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 5.22.1.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Remove deprecated native API usages.
+
 ## 5.22.1.0
 * Certified with MyTarget SDK 5.22.1.
 

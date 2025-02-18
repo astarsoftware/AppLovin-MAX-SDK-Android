@@ -2,7 +2,6 @@ package com.applovin.mediation.adapters;
 
 import android.app.Activity;
 import android.content.Context;
-import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -43,13 +42,12 @@ import com.moloco.sdk.publisher.MediationInfo;
 import com.moloco.sdk.publisher.Moloco;
 import com.moloco.sdk.publisher.MolocoAd;
 import com.moloco.sdk.publisher.MolocoAdError;
-import com.moloco.sdk.publisher.NativeAdForMediation;
+import com.moloco.sdk.publisher.NativeAd;
 import com.moloco.sdk.publisher.RewardedInterstitialAd;
 import com.moloco.sdk.publisher.RewardedInterstitialAdShowListener;
 import com.moloco.sdk.publisher.init.MolocoInitParams;
 import com.moloco.sdk.publisher.privacy.MolocoPrivacy;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -57,7 +55,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import kotlin.Unit;
-import kotlin.jvm.functions.Function1;
+import kotlin.jvm.functions.Function2;
 
 public class MolocoMediationAdapter
         extends MediationAdapterBase
@@ -69,7 +67,7 @@ public class MolocoMediationAdapter
     private InterstitialAd         interstitialAd;
     private RewardedInterstitialAd rewardedAd;
     private Banner                 adView;
-    private NativeAdForMediation   nativeAd;
+    private NativeAd               nativeAd;
 
     private InterstitialAdListener interstitialAdListener;
     private RewardedAdListener     rewardedAdListener;
@@ -77,7 +75,7 @@ public class MolocoMediationAdapter
     public MolocoMediationAdapter(final AppLovinSdk sdk) { super( sdk ); }
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
         if ( initialized.compareAndSet( false, true ) )
         {
@@ -107,7 +105,6 @@ public class MolocoMediationAdapter
         }
         else
         {
-            log( "Moloco SDK already initialized" );
             onCompletionListener.onCompletion( initializationStatus, null );
         }
     }
@@ -122,12 +119,6 @@ public class MolocoMediationAdapter
     public String getAdapterVersion()
     {
         return BuildConfig.VERSION_NAME;
-    }
-
-    @Override
-    public boolean isBeta()
-    {
-        return true;
     }
 
     @Override
@@ -163,13 +154,13 @@ public class MolocoMediationAdapter
     //region MAX Signal Provider Methods
 
     @Override
-    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
+    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, @Nullable final Activity activity, final MaxSignalCollectionListener callback)
     {
         log( "Collecting signal" );
 
         updatePrivacyPreferences( parameters );
 
-        Moloco.getBidToken( (signal, errorType) -> {
+        Moloco.getBidToken( getContext( activity ), (signal, errorType) -> {
 
             if ( errorType == null )
             {
@@ -189,29 +180,21 @@ public class MolocoMediationAdapter
     //region MAX Interstitial Adapter Methods
 
     @Override
-    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         final String placementId = parameters.getThirdPartyAdPlacementId();
 
         log( "Loading interstitial ad: " + placementId );
 
-        if ( activity == null )
-        {
-            log( "Interstitial ad load failed: Activity is null" );
-
-            final MaxAdapterError error = new MaxAdapterError( MaxAdapterError.ERROR_CODE_MISSING_ACTIVITY, "Missing Activity" );
-            listener.onInterstitialAdLoadFailed( error );
-
-            return;
-        }
-
         updatePrivacyPreferences( parameters );
 
-        final Function1<InterstitialAd, Unit> createCallback = interstitialAd -> {
+        final Function2<InterstitialAd, MolocoAdError.AdCreateError, Unit> createCallback = (interstitialAd, error) -> {
 
             if ( interstitialAd == null )
             {
-                listener.onInterstitialAdLoadFailed( MaxAdapterError.INVALID_CONFIGURATION );
+                MaxAdapterError adapterError = toMaxError( error );
+                log( "Interstitial ad load failed with error (" + adapterError + ")" );
+                listener.onInterstitialAdLoadFailed( adapterError );
             }
             else
             {
@@ -223,11 +206,11 @@ public class MolocoMediationAdapter
             return Unit.INSTANCE;
         };
 
-        Moloco.createInterstitial( placementId, createCallback );
+        Moloco.createInterstitial( placementId, null, createCallback );
     }
 
     @Override
-    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         log( "Showing interstitial ad: " + parameters.getThirdPartyAdPlacementId() );
 
@@ -247,29 +230,21 @@ public class MolocoMediationAdapter
     //region MAX Rewarded Adapter Methods
 
     @Override
-    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         final String placementId = parameters.getThirdPartyAdPlacementId();
 
         log( "Loading rewarded ad: " + placementId );
 
-        if ( activity == null )
-        {
-            log( "Rewarded ad load failed: Activity is null" );
-
-            final MaxAdapterError error = new MaxAdapterError( MaxAdapterError.ERROR_CODE_MISSING_ACTIVITY, "Missing Activity" );
-            listener.onRewardedAdLoadFailed( error );
-
-            return;
-        }
-
         updatePrivacyPreferences( parameters );
 
-        final Function1<RewardedInterstitialAd, Unit> createCallback = rewardedAd -> {
+        final Function2<RewardedInterstitialAd, MolocoAdError.AdCreateError, Unit> createCallback = (rewardedAd, error) -> {
 
             if ( rewardedAd == null )
             {
-                listener.onRewardedAdLoadFailed( MaxAdapterError.INVALID_CONFIGURATION );
+                MaxAdapterError adapterError = toMaxError( error );
+                log( "Rewarded ad load failed with error (" + adapterError + ")" );
+                listener.onRewardedAdLoadFailed( adapterError );
             }
             else
             {
@@ -281,11 +256,11 @@ public class MolocoMediationAdapter
             return Unit.INSTANCE;
         };
 
-        Moloco.createRewardedInterstitial( placementId, createCallback );
+        Moloco.createRewardedInterstitial( placementId, null, createCallback );
     }
 
     @Override
-    public void showRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void showRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         log( "Showing rewarded ad: " + parameters.getThirdPartyAdPlacementId() );
 
@@ -307,32 +282,24 @@ public class MolocoMediationAdapter
     //region MAX Ad View Adapter Methods
 
     @Override
-    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
     {
         final String placementId = parameters.getThirdPartyAdPlacementId();
         final boolean isNative = parameters.getServerParameters().getBoolean( "is_native" );
 
         log( "Loading " + ( isNative ? "native " : "" ) + adFormat.getLabel() + " ad: " + placementId );
 
-        if ( activity == null )
-        {
-            log( adFormat.getLabel() + " ad load failed: Activity is null" );
-
-            final MaxAdapterError error = new MaxAdapterError( MaxAdapterError.ERROR_CODE_MISSING_ACTIVITY, "Missing Activity" );
-            listener.onAdViewAdLoadFailed( error );
-
-            return;
-        }
-
         updatePrivacyPreferences( parameters );
 
         if ( isNative )
         {
-            final Function1<NativeAdForMediation, Unit> createCallback = nativeAd -> {
+            final Function2<NativeAd, MolocoAdError.AdCreateError, Unit> createCallback = (nativeAd, error) -> {
 
                 if ( nativeAd == null )
                 {
-                    listener.onAdViewAdLoadFailed( MaxAdapterError.INVALID_CONFIGURATION );
+                    MaxAdapterError adapterError = toMaxError( error );
+                    log( "Native " + adFormat.getLabel() + " ad load failed with error (" + adapterError + ")" );
+                    listener.onAdViewAdLoadFailed( adapterError );
                 }
                 else
                 {
@@ -345,15 +312,17 @@ public class MolocoMediationAdapter
                 return Unit.INSTANCE;
             };
 
-            Moloco.createNativeAd( placementId, createCallback );
+            Moloco.createNativeAd( placementId, null, createCallback );
         }
         else
         {
-            final Function1<Banner, Unit> createCallback = adView -> {
+            final Function2<Banner, MolocoAdError.AdCreateError, Unit> createCallback = (adView, error) -> {
 
                 if ( adView == null )
                 {
-                    listener.onAdViewAdLoadFailed( MaxAdapterError.INVALID_CONFIGURATION );
+                    MaxAdapterError adapterError = toMaxError( error );
+                    log( adFormat.getLabel() + " ad load failed with error (" + adapterError + ")" );
+                    listener.onAdViewAdLoadFailed( adapterError );
                 }
                 else
                 {
@@ -368,15 +337,15 @@ public class MolocoMediationAdapter
 
             if ( adFormat == MaxAdFormat.BANNER )
             {
-                Moloco.createBanner( placementId, createCallback );
+                Moloco.createBanner( placementId, null, createCallback );
             }
             else if ( adFormat == MaxAdFormat.LEADER )
             {
-                Moloco.createBannerTablet( placementId, createCallback );
+                Moloco.createBannerTablet( placementId, null, createCallback );
             }
             else if ( adFormat == MaxAdFormat.MREC )
             {
-                Moloco.createMREC( placementId, createCallback );
+                Moloco.createMREC( placementId, null, createCallback );
             }
             else
             {
@@ -390,32 +359,25 @@ public class MolocoMediationAdapter
     //region MAX Native Ad Adapter Methods
 
     @Override
-    public void loadNativeAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxNativeAdAdapterListener listener)
+    public void loadNativeAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxNativeAdAdapterListener listener)
     {
         final String placementId = parameters.getThirdPartyAdPlacementId();
 
         log( "Loading native ad: " + placementId );
 
-        if ( activity == null )
-        {
-            log( "Native ad load failed: Activity is null" );
-
-            final MaxAdapterError error = new MaxAdapterError( MaxAdapterError.ERROR_CODE_MISSING_ACTIVITY, "Missing Activity" );
-            listener.onNativeAdLoadFailed( error );
-
-            return;
-        }
-
         updatePrivacyPreferences( parameters );
 
-        final Function1<NativeAdForMediation, Unit> createCallback = nativeAd -> {
+        final Function2<NativeAd, MolocoAdError.AdCreateError, Unit> createCallback = (nativeAd, error) -> {
 
             if ( nativeAd == null )
             {
-                listener.onNativeAdLoadFailed( MaxAdapterError.INVALID_CONFIGURATION );
+                MaxAdapterError adapterError = toMaxError( error );
+                log( "Native ad load failed with error (" + adapterError + ")" );
+                listener.onNativeAdLoadFailed( adapterError );
             }
             else
             {
+                this.nativeAd = nativeAd;
                 final NativeAdListener nativeAdListener = new NativeAdListener( parameters, getContext( activity ), listener );
                 nativeAd.setInteractionListener( nativeAdListener );
                 nativeAd.load( parameters.getBidResponse(), nativeAdListener );
@@ -424,7 +386,7 @@ public class MolocoMediationAdapter
             return Unit.INSTANCE;
         };
 
-        Moloco.createNativeAd( placementId, createCallback );
+        Moloco.createNativeAd( placementId, null, createCallback );
     }
 
     //region Helper Methods
@@ -475,13 +437,39 @@ public class MolocoMediationAdapter
                                     molocoAdError.getDescription() );
     }
 
+    private MaxAdapterError toMaxError(@Nullable final MolocoAdError.AdCreateError error)
+    {
+        MaxAdapterError adapterError = MaxAdapterError.UNSPECIFIED;
+
+        if ( error == null )
+        {
+            return adapterError;
+        }
+
+        switch ( error )
+        {
+            case INVALID_AD_UNIT_ID:
+                adapterError = MaxAdapterError.INVALID_CONFIGURATION;
+                break;
+            case SDK_INIT_FAILED:
+                adapterError = MaxAdapterError.INTERNAL_ERROR;
+                break;
+            case SDK_INIT_WAS_NOT_COMPLETED:
+                adapterError = MaxAdapterError.NOT_INITIALIZED;
+                break;
+        }
+
+        return new MaxAdapterError( adapterError,
+                                    error.getErrorCode(),
+                                    error.getDescription() );
+    }
+
     private void updatePrivacyPreferences(final MaxAdapterParameters parameters)
     {
         final Boolean hasUserConsent = parameters.hasUserConsent();
-        final Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
         final Boolean isDoNotSell = parameters.isDoNotSell();
 
-        final MolocoPrivacy.PrivacySettings privacySettings = new MolocoPrivacy.PrivacySettings( hasUserConsent, isAgeRestrictedUser, isDoNotSell );
+        final MolocoPrivacy.PrivacySettings privacySettings = new MolocoPrivacy.PrivacySettings( hasUserConsent, null, isDoNotSell );
         MolocoPrivacy.setPrivacy( privacySettings );
     }
 
@@ -695,7 +683,7 @@ public class MolocoMediationAdapter
     }
 
     private class NativeAdViewListener
-            implements AdLoad.Listener, NativeAdForMediation.InteractionListener
+            implements AdLoad.Listener, NativeAd.InteractionListener
     {
         private final MaxAdFormat              adFormat;
         private final Bundle                   serverParameters;
@@ -713,15 +701,27 @@ public class MolocoMediationAdapter
         @Override
         public void onAdLoadSuccess(@NonNull final MolocoAd molocoAd)
         {
-            if ( nativeAd == null )
+            final NativeAd loadedNativeAd = nativeAd;
+            if ( loadedNativeAd == null )
             {
                 e( "Native " + adFormat.getLabel() + " ad is null" );
+                listener.onAdViewAdLoadFailed( MaxAdapterError.INVALID_CONFIGURATION );
+
                 return;
             }
 
             log( "Native " + adFormat.getLabel() + " ad loaded" );
 
-            if ( TextUtils.isEmpty( nativeAd.getTitle() ) )
+            final NativeAd.Assets assets = loadedNativeAd.getAssets();
+            if ( assets == null )
+            {
+                e( "Native " + adFormat.getLabel() + " ad assets object is null" );
+                listener.onAdViewAdLoadFailed( MaxAdapterError.MISSING_REQUIRED_NATIVE_AD_ASSETS );
+
+                return;
+            }
+
+            if ( TextUtils.isEmpty( assets.getTitle() ) )
             {
                 e( "Native " + adFormat.getLabel() + " ad (" + nativeAd + ") does not have required assets." );
                 listener.onAdViewAdLoadFailed( MaxAdapterError.MISSING_REQUIRED_NATIVE_AD_ASSETS );
@@ -731,33 +731,28 @@ public class MolocoMediationAdapter
 
             final MaxNativeAd.Builder builder = new MaxNativeAd.Builder()
                     .setAdFormat( adFormat )
-                    .setTitle( nativeAd.getTitle() )
-                    .setBody( nativeAd.getDescription() )
-                    .setAdvertiser( nativeAd.getSponsorText() )
-                    .setCallToAction( nativeAd.getCallToActionText() )
-                    .setStarRating( nativeAd.getRating() != null ? nativeAd.getRating().doubleValue() : null );
+                    .setTitle( assets.getTitle() )
+                    .setBody( assets.getDescription() )
+                    .setAdvertiser( assets.getSponsorText() )
+                    .setCallToAction( assets.getCallToActionText() )
+                    .setStarRating( assets.getRating() != null ? assets.getRating().doubleValue() : null );
 
-            if ( nativeAd.getIconUri() != null )
+            if ( assets.getIconUri() != null )
             {
-                // getIconUri() returns a Uri string without the "file://" prefix.
-                final Uri iconUri = Uri.fromFile( new File( nativeAd.getIconUri() ) );
-                builder.setIcon( new MaxNativeAd.MaxNativeAdImage( iconUri ) );
+                builder.setIcon( new MaxNativeAd.MaxNativeAdImage( assets.getIconUri() ) );
             }
 
-            if ( nativeAd.getVideo() != null )
+            if ( assets.getMediaView() != null )
             {
-                builder.setMediaView( nativeAd.getVideo() );
+                builder.setMediaView( assets.getMediaView() );
             }
-            else if ( nativeAd.getMainImageUri() != null )
+            else if ( assets.getMainImageUri() != null )
             {
-                // getMainImageUri() returns a Uri string without the "file://" prefix.
-                final Uri mainImageUri = Uri.fromFile( new File( nativeAd.getMainImageUri() ) );
-
                 final ImageView imageView = new ImageView( context );
-                ImageViewUtils.setImageUri( imageView, mainImageUri, null );
+                ImageViewUtils.setImageUri( imageView, assets.getMainImageUri(), null );
 
                 builder.setMediaView( imageView );
-                builder.setMainImage( new MaxNativeAd.MaxNativeAdImage( mainImageUri ) );
+                builder.setMainImage( new MaxNativeAd.MaxNativeAdImage( assets.getMainImageUri() ) );
             }
 
             final MaxMolocoNativeAd maxMolocoNativeAd = new MaxMolocoNativeAd( builder );
@@ -796,7 +791,7 @@ public class MolocoMediationAdapter
     }
 
     private class NativeAdListener
-            implements AdLoad.Listener, NativeAdForMediation.InteractionListener
+            implements AdLoad.Listener, NativeAd.InteractionListener
     {
         private final Bundle                     serverParameters;
         private final Context                    context;
@@ -812,20 +807,32 @@ public class MolocoMediationAdapter
         @Override
         public void onAdLoadSuccess(@NonNull final MolocoAd molocoAd)
         {
-            if ( nativeAd == null )
+            final NativeAd loadedNativeAd = nativeAd;
+            if ( loadedNativeAd == null )
             {
                 e( "Native ad is null" );
+                listener.onNativeAdLoadFailed( MaxAdapterError.INVALID_CONFIGURATION );
+
                 return;
             }
 
             log( "Native ad loaded" );
 
+            final NativeAd.Assets assets = loadedNativeAd.getAssets();
+            if ( assets == null )
+            {
+                e( "Native ad assets object is null" );
+                listener.onNativeAdLoadFailed( MaxAdapterError.MISSING_REQUIRED_NATIVE_AD_ASSETS );
+
+                return;
+            }
+
             final String templateName = BundleUtils.getString( "template", "", serverParameters );
             final boolean isTemplateAd = AppLovinSdkUtils.isValidString( templateName );
 
-            if ( isTemplateAd && TextUtils.isEmpty( nativeAd.getTitle() ) )
+            if ( isTemplateAd && TextUtils.isEmpty( assets.getTitle() ) )
             {
-                e( "Native ad (" + nativeAd + ") does not have required assets." );
+                e( "Native ad (" + loadedNativeAd + ") does not have required assets." );
                 listener.onNativeAdLoadFailed( MaxAdapterError.MISSING_REQUIRED_NATIVE_AD_ASSETS );
 
                 return;
@@ -833,33 +840,28 @@ public class MolocoMediationAdapter
 
             final MaxNativeAd.Builder builder = new MaxNativeAd.Builder()
                     .setAdFormat( MaxAdFormat.NATIVE )
-                    .setTitle( nativeAd.getTitle() )
-                    .setBody( nativeAd.getDescription() )
-                    .setAdvertiser( nativeAd.getSponsorText() )
-                    .setCallToAction( nativeAd.getCallToActionText() )
-                    .setStarRating( nativeAd.getRating() != null ? nativeAd.getRating().doubleValue() : null );
+                    .setTitle( assets.getTitle() )
+                    .setBody( assets.getDescription() )
+                    .setAdvertiser( assets.getSponsorText() )
+                    .setCallToAction( assets.getCallToActionText() )
+                    .setStarRating( assets.getRating() != null ? assets.getRating().doubleValue() : null );
 
-            if ( nativeAd.getIconUri() != null )
+            if ( assets.getIconUri() != null )
             {
-                // getIconUri() returns a Uri string without the "file://" prefix.
-                final Uri iconUri = Uri.fromFile( new File( nativeAd.getIconUri() ) );
-                builder.setIcon( new MaxNativeAd.MaxNativeAdImage( iconUri ) );
+                builder.setIcon( new MaxNativeAd.MaxNativeAdImage( assets.getIconUri() ) );
             }
 
-            if ( nativeAd.getVideo() != null )
+            if ( assets.getMediaView() != null )
             {
-                builder.setMediaView( nativeAd.getVideo() );
+                builder.setMediaView( assets.getMediaView() );
             }
-            else if ( nativeAd.getMainImageUri() != null )
+            else if ( assets.getMainImageUri() != null )
             {
-                // getMainImageUri() returns a Uri string without the "file://" prefix.
-                final Uri mainImageUri = Uri.fromFile( new File( nativeAd.getMainImageUri() ) );
-
                 final ImageView imageView = new ImageView( context );
-                ImageViewUtils.setImageUri( imageView, mainImageUri, null );
+                ImageViewUtils.setImageUri( imageView, assets.getMainImageUri(), null );
 
                 builder.setMediaView( imageView );
-                builder.setMainImage( new MaxNativeAd.MaxNativeAdImage( mainImageUri ) );
+                builder.setMainImage( new MaxNativeAd.MaxNativeAdImage( assets.getMainImageUri() ) );
             }
 
             final MaxNativeAd maxNativeAd = new MaxMolocoNativeAd( builder );
@@ -898,15 +900,9 @@ public class MolocoMediationAdapter
         }
 
         @Override
-        public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
-        {
-            prepareForInteraction( MolocoMediationAdapter.this.getClickableViews( maxNativeAdView ), maxNativeAdView );
-        }
-
-        @Override
         public boolean prepareForInteraction(final List<View> clickableViews, final ViewGroup container)
         {
-            final NativeAdForMediation nativeAd = MolocoMediationAdapter.this.nativeAd;
+            final NativeAd nativeAd = MolocoMediationAdapter.this.nativeAd;
             if ( nativeAd == null )
             {
                 e( "Failed to register native ad view: native ad is null." );
@@ -917,23 +913,7 @@ public class MolocoMediationAdapter
 
             for ( final View clickableView : clickableViews )
             {
-                clickableView.setOnClickListener( view -> {
-
-                    if ( view instanceof ImageView )
-                    {
-                        nativeAd.handleIconClick();
-                    }
-                    else
-                    {
-                        nativeAd.handleGeneralAdClick();
-                    }
-                } );
-            }
-
-            final View mediaView = getMediaView();
-            if ( mediaView != null )
-            {
-                mediaView.setOnClickListener( view -> nativeAd.handleMainImageClick() );
+                clickableView.setOnClickListener( view -> nativeAd.handleGeneralAdClick() );
             }
 
             if ( getFormat() == MaxAdFormat.NATIVE )

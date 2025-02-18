@@ -8,6 +8,8 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 
 import com.applovin.impl.sdk.utils.BundleUtils;
 import com.applovin.mediation.MaxAdFormat;
@@ -33,11 +35,9 @@ import com.applovin.mediation.nativeAds.MaxNativeAdView;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkUtils;
 import com.vungle.ads.AdConfig;
-import com.vungle.ads.BannerAd;
 import com.vungle.ads.BannerAdListener;
-import com.vungle.ads.BannerAdSize;
-import com.vungle.ads.BannerView;
 import com.vungle.ads.BaseAd;
+import com.vungle.ads.BidTokenCallback;
 import com.vungle.ads.InitializationListener;
 import com.vungle.ads.InterstitialAd;
 import com.vungle.ads.InterstitialAdListener;
@@ -45,9 +45,12 @@ import com.vungle.ads.NativeAd;
 import com.vungle.ads.NativeAdListener;
 import com.vungle.ads.RewardedAd;
 import com.vungle.ads.RewardedAdListener;
+import com.vungle.ads.VungleAdSize;
 import com.vungle.ads.VungleAds;
+import com.vungle.ads.VungleBannerView;
 import com.vungle.ads.VungleError;
 import com.vungle.ads.VunglePrivacySettings;
+import com.vungle.ads.internal.protos.Sdk.SDKError.Reason;
 import com.vungle.ads.internal.ui.view.MediaView;
 
 import java.util.ArrayList;
@@ -64,17 +67,17 @@ public class VungleMediationAdapter
     private static final AtomicBoolean        initialized = new AtomicBoolean();
     private static       InitializationStatus initializationStatus;
 
-    private BannerAd       bannerAd;
-    private InterstitialAd interstitialAd;
-    private RewardedAd     rewardedAd;
-    private NativeAd       nativeAd;
-    private InterstitialAd appOpenAd;
+    private VungleBannerView adViewAd;
+    private InterstitialAd   interstitialAd;
+    private RewardedAd       rewardedAd;
+    private NativeAd         nativeAd;
+    private InterstitialAd   appOpenAd;
 
     // Explicit default constructor declaration
     public VungleMediationAdapter(final AppLovinSdk sdk) { super( sdk ); }
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
         updateUserPrivacySettings( parameters );
 
@@ -113,7 +116,6 @@ public class VungleMediationAdapter
         }
         else
         {
-            log( "Vungle SDK already initialized" );
             onCompletionListener.onCompletion( initializationStatus, null );
         }
     }
@@ -133,11 +135,11 @@ public class VungleMediationAdapter
     @Override
     public void onDestroy()
     {
-        if ( bannerAd != null )
+        if ( adViewAd != null )
         {
-            bannerAd.setAdListener( null );
-            bannerAd.finishAd();
-            bannerAd = null;
+            adViewAd.setAdListener( null );
+            adViewAd.finishAd();
+            adViewAd = null;
         }
 
         if ( nativeAd != null )
@@ -169,14 +171,27 @@ public class VungleMediationAdapter
     //region Signal Collection
 
     @Override
-    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
+    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, @Nullable final Activity activity, final MaxSignalCollectionListener callback)
     {
         log( "Collecting signal..." );
 
         updateUserPrivacySettings( parameters );
 
-        String signal = VungleAds.getBiddingToken( getContext( activity ) );
-        callback.onSignalCollected( signal );
+        VungleAds.getBiddingToken( getContext( activity ), new BidTokenCallback()
+        {
+            @Override
+            public void onBidTokenCollected(@NonNull final String bidToken)
+            {
+                callback.onSignalCollected( bidToken );
+            }
+
+            @Override
+            public void onBidTokenError(@NonNull final String errorMessage)
+            {
+                log( "Signal collection failed: " + errorMessage );
+                callback.onSignalCollectionFailed( errorMessage );
+            }
+        } );
     }
 
     //endregion
@@ -184,7 +199,7 @@ public class VungleMediationAdapter
     //region MaxInterstitialAdapter
 
     @Override
-    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         String bidResponse = parameters.getBidResponse();
         boolean isBiddingAd = AppLovinSdkUtils.isValidString( bidResponse );
@@ -208,7 +223,7 @@ public class VungleMediationAdapter
     }
 
     @Override
-    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         if ( interstitialAd != null && interstitialAd.canPlayAd() )
         {
@@ -268,7 +283,7 @@ public class VungleMediationAdapter
     //region MaxRewardedAdapter
 
     @Override
-    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         String bidResponse = parameters.getBidResponse();
         boolean isBiddingAd = AppLovinSdkUtils.isValidString( bidResponse );
@@ -292,7 +307,7 @@ public class VungleMediationAdapter
     }
 
     @Override
-    public void showRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void showRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         if ( rewardedAd != null && rewardedAd.canPlayAd() )
         {
@@ -313,7 +328,7 @@ public class VungleMediationAdapter
     //region MaxAdViewAdapter
 
     @Override
-    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
     {
         final String bidResponse = parameters.getBidResponse();
         final String adFormatLabel = adFormat.getLabel();
@@ -338,7 +353,7 @@ public class VungleMediationAdapter
         if ( isNative )
         {
             final NativeAdViewListener nativeAdViewListener = new NativeAdViewListener( parameters, adFormat, context, listener );
-            nativeAd = new NativeAd( activity, placementId );
+            nativeAd = new NativeAd( getContext( activity ), placementId );
             nativeAd.setAdListener( nativeAdViewListener );
 
             nativeAd.load( bidResponse );
@@ -346,11 +361,11 @@ public class VungleMediationAdapter
             return;
         }
 
-        BannerAdSize adSize = vungleAdSize( adFormat );
-        bannerAd = new BannerAd( context, placementId, adSize );
-        bannerAd.setAdListener( new AdViewAdListener( adFormatLabel, listener ) );
+        VungleAdSize adSize = vungleAdSize( adFormat );
+        adViewAd = new VungleBannerView( context, placementId, adSize );
+        adViewAd.setAdListener( new AdViewAdListener( adFormatLabel, listener ) );
 
-        bannerAd.load( bidResponse );
+        adViewAd.load( bidResponse );
     }
 
     //endregion
@@ -358,7 +373,7 @@ public class VungleMediationAdapter
     //region MaxNativeAdAdapter Methods
 
     @Override
-    public void loadNativeAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxNativeAdAdapterListener listener)
+    public void loadNativeAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxNativeAdAdapterListener listener)
     {
         String bidResponse = parameters.getBidResponse();
         boolean isBiddingAd = AppLovinSdkUtils.isValidString( bidResponse );
@@ -375,7 +390,7 @@ public class VungleMediationAdapter
 
         updateUserPrivacySettings( parameters );
 
-        nativeAd = new NativeAd( activity, placementId );
+        nativeAd = new NativeAd( getContext( activity ), placementId );
         nativeAd.setAdListener( new NativeListener( parameters, getContext( activity ), listener ) );
 
         nativeAd.load( bidResponse );
@@ -403,27 +418,21 @@ public class VungleMediationAdapter
         {
             VunglePrivacySettings.setCCPAStatus( !isDoNotSell );
         }
-
-        Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
-        if ( isAgeRestrictedUser != null )
-        {
-            VunglePrivacySettings.setCOPPAStatus( isAgeRestrictedUser );
-        }
     }
 
-    private static BannerAdSize vungleAdSize(final MaxAdFormat adFormat)
+    private static VungleAdSize vungleAdSize(final MaxAdFormat adFormat)
     {
         if ( adFormat == MaxAdFormat.BANNER )
         {
-            return BannerAdSize.BANNER;
+            return VungleAdSize.BANNER;
         }
         else if ( adFormat == MaxAdFormat.LEADER )
         {
-            return BannerAdSize.BANNER_LEADERBOARD;
+            return VungleAdSize.BANNER_LEADERBOARD;
         }
         else if ( adFormat == MaxAdFormat.MREC )
         {
-            return BannerAdSize.VUNGLE_MREC;
+            return VungleAdSize.MREC;
         }
         else
         {
@@ -431,7 +440,7 @@ public class VungleMediationAdapter
         }
     }
 
-    private Context getContext(@Nullable Activity activity)
+    private Context getContext(@Nullable final Activity activity)
     {
         // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
         return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
@@ -439,75 +448,78 @@ public class VungleMediationAdapter
 
     private List<View> getClickableViews(final MaxNativeAdView maxNativeAdView)
     {
-        final List<View> clickableViews = new ArrayList<>( 6 );
+        final List<View> clickableViews = new ArrayList<>( 7 );
         if ( maxNativeAdView.getTitleTextView() != null ) clickableViews.add( maxNativeAdView.getTitleTextView() );
         if ( maxNativeAdView.getAdvertiserTextView() != null ) clickableViews.add( maxNativeAdView.getAdvertiserTextView() );
         if ( maxNativeAdView.getBodyTextView() != null ) clickableViews.add( maxNativeAdView.getBodyTextView() );
         if ( maxNativeAdView.getCallToActionButton() != null ) clickableViews.add( maxNativeAdView.getCallToActionButton() );
         if ( maxNativeAdView.getIconImageView() != null ) clickableViews.add( maxNativeAdView.getIconImageView() );
-        final View mediaContentView = ( AppLovinSdk.VERSION_CODE >= 11_00_00_00 ) ? maxNativeAdView.getMediaContentViewGroup() : maxNativeAdView.getMediaContentView();
-        if ( mediaContentView != null ) clickableViews.add( mediaContentView );
+        if ( maxNativeAdView.getMediaContentViewGroup() != null ) clickableViews.add( maxNativeAdView.getMediaContentViewGroup() );
 
         return clickableViews;
     }
 
-    private static MaxAdapterError toMaxError(final VungleError vungleError)
+    private static MaxAdapterError toMaxError(final VungleError vungleError, final boolean isAdPresentError)
     {
         final int vungleErrorCode = vungleError.getCode();
         MaxAdapterError adapterError = MaxAdapterError.UNSPECIFIED;
         switch ( vungleErrorCode )
         {
-            case VungleError.NO_SERVE:
-                adapterError = MaxAdapterError.NO_FILL;
-                break;
-            case VungleError.UNKNOWN_ERROR:
-                adapterError = MaxAdapterError.UNSPECIFIED;
-                break;
-            case VungleError.INVALID_APP_ID:
-            case VungleError.CONFIGURATION_ERROR:
-            case VungleError.INVALID_SIZE:
-            case VungleError.NETWORK_PERMISSIONS_NOT_GRANTED:
-            case VungleError.NO_SPACE_TO_DOWNLOAD_ASSETS:
-            case VungleError.PLACEMENT_NOT_FOUND:
-            case VungleError.SDK_VERSION_BELOW_REQUIRED_VERSION:
-            case VungleError.PLACEMENT_AD_TYPE_MISMATCH:
-                adapterError = MaxAdapterError.INVALID_CONFIGURATION;
-                break;
-            case VungleError.AD_EXPIRED:
-                adapterError = MaxAdapterError.AD_EXPIRED;
-                break;
-            case VungleError.SDK_NOT_INITIALIZED:
-            case VungleError.CURRENTLY_INITIALIZING:
+            case Reason.SDK_NOT_INITIALIZED_VALUE:
                 adapterError = MaxAdapterError.NOT_INITIALIZED;
                 break;
-            case VungleError.AD_UNABLE_TO_PLAY:
-            case VungleError.CREATIVE_ERROR:
-            case VungleError.OUT_OF_MEMORY:
-            case VungleError.AD_MARKUP_INVALID:
-            case VungleError.MRAID_DOWNLOAD_JS_ERROR:
-            case VungleError.ASSET_RESPONSE_DATA_ERROR:
+            case Reason.INVALID_APP_ID_VALUE:
+            case Reason.INVALID_PLACEMENT_ID_VALUE:
+            case Reason.PLACEMENT_AD_TYPE_MISMATCH_VALUE:
+            case Reason.INVALID_WATERFALL_PLACEMENT_ID_VALUE:
+            case Reason.BANNER_VIEW_INVALID_SIZE_VALUE:
+            case Reason.AD_PUBLISHER_MISMATCH_VALUE:
+                adapterError = MaxAdapterError.INVALID_CONFIGURATION;
+                break;
+            case Reason.JSON_ENCODE_ERROR_VALUE:
+            case Reason.AD_INTERNAL_INTEGRATION_ERROR_VALUE:
                 adapterError = MaxAdapterError.INTERNAL_ERROR;
                 break;
-            case VungleError.AD_FAILED_TO_DOWNLOAD:
-            case VungleError.AD_RENDER_NETWORK_ERROR:
-            case VungleError.ASSET_DOWNLOAD_ERROR:
-            case VungleError.NETWORK_ERROR:
-            case VungleError.NETWORK_UNREACHABLE:
-                adapterError = MaxAdapterError.NO_CONNECTION;
-                break;
-            case VungleError.SERVER_RETRY_ERROR:
-                adapterError = MaxAdapterError.SERVER_ERROR;
-                break;
-            case VungleError.ALREADY_PLAYING_ANOTHER_AD:
-            case VungleError.INVALID_AD_STATE:
+            case Reason.AD_CONSUMED_VALUE:
+            case Reason.AD_IS_LOADING_VALUE:
+            case Reason.AD_ALREADY_LOADED_VALUE:
+            case Reason.AD_IS_PLAYING_VALUE:
+            case Reason.AD_ALREADY_FAILED_VALUE:
                 adapterError = MaxAdapterError.INVALID_LOAD_STATE;
                 break;
-            case VungleError.WEBVIEW_RENDER_UNRESPONSIVE:
-            case VungleError.WEB_CRASH:
-                adapterError = MaxAdapterError.WEBVIEW_ERROR;
+            case Reason.AD_NOT_LOADED_VALUE:
+                adapterError = isAdPresentError ? MaxAdapterError.AD_NOT_READY : MaxAdapterError.INVALID_LOAD_STATE;
                 break;
-            case VungleError.NETWORK_TIMEOUT:
+            case Reason.INVALID_INDEX_URL_VALUE:
+            case Reason.INVALID_IFA_STATUS_VALUE:
+            case Reason.MRAID_BRIDGE_ERROR_VALUE:
+            case Reason.CONCURRENT_PLAYBACK_UNSUPPORTED_VALUE:
+                adapterError = MaxAdapterError.AD_DISPLAY_FAILED;
+                break;
+            case Reason.PLACEMENT_SLEEP_VALUE:
+            case Reason.AD_NO_FILL_VALUE:
+            case Reason.AD_LOAD_TOO_FREQUENTLY_VALUE:
+                adapterError = MaxAdapterError.NO_FILL;
+                break;
+            case Reason.AD_RESPONSE_TIMED_OUT_VALUE:
                 adapterError = MaxAdapterError.TIMEOUT;
+                break;
+            case Reason.AD_RESPONSE_RETRY_AFTER_VALUE:
+            case Reason.AD_LOAD_FAIL_RETRY_AFTER_VALUE:
+            case Reason.AD_SERVER_ERROR_VALUE:
+                adapterError = MaxAdapterError.SERVER_ERROR;
+                break;
+            case Reason.AD_EXPIRED_VALUE:
+            case Reason.AD_EXPIRED_ON_PLAY_VALUE:
+                adapterError = MaxAdapterError.AD_EXPIRED;
+                break;
+            case Reason.NATIVE_ASSET_ERROR_VALUE:
+                adapterError = MaxAdapterError.MISSING_REQUIRED_NATIVE_AD_ASSETS;
+                break;
+            case Reason.WEB_VIEW_WEB_CONTENT_PROCESS_DID_TERMINATE_VALUE:
+            case Reason.WEB_VIEW_FAILED_NAVIGATION_VALUE:
+            case Reason.WEBVIEW_ERROR_VALUE:
+                adapterError = MaxAdapterError.WEBVIEW_ERROR;
                 break;
         }
 
@@ -551,7 +563,7 @@ public class VungleMediationAdapter
         @Override
         public void onAdFailedToLoad(final BaseAd baseAd, final VungleError vungleError)
         {
-            MaxAdapterError error = toMaxError( vungleError );
+            MaxAdapterError error = toMaxError( vungleError, false );
             log( "Interstitial ad failed to load with error: " + error );
             listener.onInterstitialAdLoadFailed( error );
         }
@@ -572,7 +584,7 @@ public class VungleMediationAdapter
         @Override
         public void onAdFailedToPlay(final BaseAd baseAd, final VungleError vungleError)
         {
-            MaxAdapterError error = toMaxError( vungleError );
+            MaxAdapterError error = toMaxError( vungleError, true );
             log( "Interstitial ad failed to display with error: " + error );
             listener.onInterstitialAdDisplayFailed( error );
         }
@@ -620,7 +632,7 @@ public class VungleMediationAdapter
         @Override
         public void onAdFailedToLoad(final BaseAd baseAd, final VungleError vungleError)
         {
-            MaxAdapterError error = toMaxError( vungleError );
+            MaxAdapterError error = toMaxError( vungleError, false );
             log( "App Open ad failed to load with error: " + error );
             listener.onAppOpenAdLoadFailed( error );
         }
@@ -641,7 +653,7 @@ public class VungleMediationAdapter
         @Override
         public void onAdFailedToPlay(final BaseAd baseAd, final VungleError vungleError)
         {
-            MaxAdapterError error = toMaxError( vungleError );
+            MaxAdapterError error = toMaxError( vungleError, true );
             log( "App Open ad failed to display with error: " + error );
             listener.onAppOpenAdDisplayFailed( error );
         }
@@ -691,7 +703,7 @@ public class VungleMediationAdapter
         @Override
         public void onAdFailedToLoad(final BaseAd baseAd, final VungleError vungleError)
         {
-            MaxAdapterError error = toMaxError( vungleError );
+            MaxAdapterError error = toMaxError( vungleError, false );
             log( "Rewarded ad failed to load with error: " + error );
             listener.onRewardedAdLoadFailed( error );
         }
@@ -713,7 +725,7 @@ public class VungleMediationAdapter
         @Override
         public void onAdFailedToPlay(final BaseAd baseAd, final VungleError vungleError)
         {
-            MaxAdapterError error = toMaxError( vungleError );
+            MaxAdapterError error = toMaxError( vungleError, true );
             log( "Rewarded ad failed to display with error: " + error );
             listener.onRewardedAdDisplayFailed( error );
         }
@@ -772,14 +784,13 @@ public class VungleMediationAdapter
         {
             log( "Showing " + adFormatLabel + " ad for placement: " + baseAd.getPlacementId() + "..." );
 
-            if ( bannerAd != null && bannerAd.getBannerView() != null )
+            if ( adViewAd != null )
             {
-                BannerView bannerView = bannerAd.getBannerView();
-                bannerView.setGravity( Gravity.CENTER );
+                adViewAd.setGravity( Gravity.CENTER );
                 log( adFormatLabel + " ad loaded" );
 
                 Bundle extraInfo = maybeCreateExtraInfoBundle( baseAd );
-                listener.onAdViewAdLoaded( bannerView, extraInfo );
+                listener.onAdViewAdLoaded( adViewAd, extraInfo );
             }
             else
             {
@@ -792,7 +803,7 @@ public class VungleMediationAdapter
         @Override
         public void onAdFailedToLoad(final BaseAd baseAd, final VungleError vungleError)
         {
-            MaxAdapterError error = toMaxError( vungleError );
+            MaxAdapterError error = toMaxError( vungleError, false );
             log( adFormatLabel + " ad failed to load with error: " + error );
             listener.onAdViewAdLoadFailed( error );
         }
@@ -813,7 +824,7 @@ public class VungleMediationAdapter
         @Override
         public void onAdFailedToPlay(final BaseAd baseAd, final VungleError vungleError)
         {
-            MaxAdapterError error = toMaxError( vungleError );
+            MaxAdapterError error = toMaxError( vungleError, true );
             log( adFormatLabel + " ad display failed with error: " + error );
             listener.onAdViewAdDisplayFailed( error );
         }
@@ -914,7 +925,7 @@ public class VungleMediationAdapter
                                                        applicationContext );
             }
 
-            maxVungleNativeAd.prepareViewForInteraction( maxNativeAdView );
+            maxVungleNativeAd.prepareForInteraction( getClickableViews( maxNativeAdView ), maxNativeAdView );
 
             Bundle extraInfo = maybeCreateExtraInfoBundle( ad );
             listener.onAdViewAdLoaded( maxNativeAdView, extraInfo );
@@ -923,7 +934,7 @@ public class VungleMediationAdapter
         @Override
         public void onAdFailedToLoad(final BaseAd baseAd, final VungleError vungleError)
         {
-            MaxAdapterError adapterError = toMaxError( vungleError );
+            MaxAdapterError adapterError = toMaxError( vungleError, false );
             log( "Native " + adFormat.getLabel() + " ad failed to load with error " + adapterError + " with placement id: " + baseAd.getPlacementId() );
             listener.onAdViewAdLoadFailed( adapterError );
         }
@@ -944,7 +955,7 @@ public class VungleMediationAdapter
         @Override
         public void onAdFailedToPlay(final BaseAd baseAd, final VungleError vungleError)
         {
-            log( "Native " + adFormat.getLabel() + " ad failed to play with error " + toMaxError( vungleError ) + " with placement id: " + baseAd.getPlacementId() );
+            log( "Native " + adFormat.getLabel() + " ad failed to play with error " + toMaxError( vungleError, true ) + " with placement id: " + baseAd.getPlacementId() );
         }
 
         @Override
@@ -1027,7 +1038,7 @@ public class VungleMediationAdapter
         @Override
         public void onAdFailedToLoad(final BaseAd baseAd, final VungleError vungleError)
         {
-            MaxAdapterError adapterError = toMaxError( vungleError );
+            MaxAdapterError adapterError = toMaxError( vungleError, false );
             log( "Native ad failed to load with error " + adapterError + " with placement id: " + baseAd.getPlacementId() );
             listener.onNativeAdLoadFailed( adapterError );
         }
@@ -1048,7 +1059,7 @@ public class VungleMediationAdapter
         @Override
         public void onAdFailedToPlay(final BaseAd baseAd, final VungleError vungleError)
         {
-            log( "Native ad failed to play with error " + toMaxError( vungleError ) + " with placement id: " + baseAd.getPlacementId() );
+            log( "Native ad failed to play with error " + toMaxError( vungleError, true ) + " with placement id: " + baseAd.getPlacementId() );
         }
 
         @Override
@@ -1082,41 +1093,70 @@ public class VungleMediationAdapter
         }
 
         @Override
-        public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
+        public boolean prepareForInteraction(final List<View> clickableViews, final ViewGroup container)
         {
             final NativeAd nativeAd = VungleMediationAdapter.this.nativeAd;
             if ( nativeAd == null )
             {
                 e( "Failed to register native ad views: native ad is null." );
-                return;
+                return false;
             }
 
             if ( !nativeAd.canPlayAd() )
             {
                 e( "Failed to play native ad or native ad is registered." );
-                return;
+                return false;
             }
 
             View mediaView = getMediaView();
             if ( mediaView == null )
             {
                 e( "Failed to register native ad views: mediaView is null." );
-                return;
+                return false;
             }
 
-            if ( mediaView.getParent() != null )
+            // mediaView needs to be in the clickableViews for the mediaView to be clickable even though it is only a container of the network's media view.
+            clickableViews.add( mediaView );
+
+            // Native integrations
+            if ( container instanceof MaxNativeAdView )
             {
-                ( (ViewGroup) mediaView.getParent() ).removeView( mediaView );
-            }
+                if ( mediaView.getParent() != null )
+                {
+                    ( (ViewGroup) mediaView.getParent() ).removeView( mediaView );
+                }
 
-            ViewGroup contentViewGroup = maxNativeAdView.getMediaContentViewGroup();
-            if ( contentViewGroup != null )
+                MaxNativeAdView maxNativeAdView = (MaxNativeAdView) container;
+
+                ViewGroup contentViewGroup = maxNativeAdView.getMediaContentViewGroup();
+                if ( contentViewGroup != null )
+                {
+                    contentViewGroup.removeAllViews();
+                    contentViewGroup.addView( mediaView );
+                }
+
+                nativeAd.registerViewForInteraction( maxNativeAdView, (MediaView) mediaView, maxNativeAdView.getIconImageView(), clickableViews );
+            }
+            // Plugins
+            else
             {
-                contentViewGroup.removeAllViews();
-                contentViewGroup.addView( mediaView );
+                FrameLayout frameLayout = new FrameLayout( container.getContext() );
+                container.addView( frameLayout, 0, new FrameLayout.LayoutParams( FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT ) );
+
+                ImageView iconImageView = null;
+                for ( final View clickableView : clickableViews )
+                {
+                    if ( clickableView instanceof ImageView )
+                    {
+                        iconImageView = (ImageView) clickableView;
+                        break;
+                    }
+                }
+
+                nativeAd.registerViewForInteraction( frameLayout, (MediaView) mediaView, iconImageView, clickableViews );
             }
 
-            nativeAd.registerViewForInteraction( maxNativeAdView, (MediaView) mediaView, maxNativeAdView.getIconImageView(), VungleMediationAdapter.this.getClickableViews( maxNativeAdView ) );
+            return true;
         }
     }
 }

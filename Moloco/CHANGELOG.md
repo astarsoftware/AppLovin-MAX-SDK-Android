@@ -1,5 +1,40 @@
 # Changelog
 
+## 3.6.1.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 3.6.1.0
+* Certified with Moloco SDK 3.6.1.
+
+## 3.6.0.1
+* Downgrade Moloco SDK to 3.5.0 due to crashes with Moloco SDK 3.6.0.
+
+## 3.6.0.0
+* Certified with Moloco SDK 3.6.0.
+
+## 3.5.0.0
+* Certified with Moloco SDK 3.5.0.
+* Add support for native and native ad view ads.
+
+## 3.4.0.0
+* Certified with Moloco SDK 3.4.0.
+* Removed redundant log output when initialization was already completed.
+
+## 3.3.0.1
+* Removed unnecessary `Activity` null checks for ad loads.
+
+## 3.3.0.0
+* Certified with Moloco SDK 3.3.0.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 3.2.0.0
+* Certified with Moloco SDK 3.2.0.
+
+## 3.1.0.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Remove deprecated native API usages.
+
 ## 3.1.0.0
 * Certified with Moloco SDK 3.1.0.
 

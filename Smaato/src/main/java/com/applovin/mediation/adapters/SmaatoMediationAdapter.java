@@ -63,6 +63,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 /**
  * Created by Christopher Cong on March 11 2019
@@ -93,7 +94,7 @@ public class SmaatoMediationAdapter
     //region MaxAdapter
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
         if ( INITIALIZED.compareAndSet( false, true ) )
         {
@@ -108,9 +109,6 @@ public class SmaatoMediationAdapter
             final Application application = (Application) getContext( activity );
 
             SmaatoSdk.init( application, config, pubId );
-
-            // Call all other APIs after `SmaatoSdk.init(...)`
-            updateAgeRestrictedUser( parameters );
 
             // NOTE: This does not work atm
             updateLocationCollectionEnabled( parameters );
@@ -132,11 +130,10 @@ public class SmaatoMediationAdapter
     }
 
     @Override
-    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
+    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, @Nullable final Activity activity, final MaxSignalCollectionListener callback)
     {
         log( "Collecting signal..." );
 
-        updateAgeRestrictedUser( parameters );
         updateLocationCollectionEnabled( parameters );
 
         final String signal = SmaatoSdk.collectSignals( getContext( activity ) );
@@ -165,7 +162,7 @@ public class SmaatoMediationAdapter
     //region MaxAdViewAdapter
 
     @Override
-    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
     {
         final String bidResponse = parameters.getBidResponse();
         final String placementId = parameters.getThirdPartyAdPlacementId();
@@ -173,7 +170,6 @@ public class SmaatoMediationAdapter
         final boolean isNative = parameters.getServerParameters().getBoolean( "is_native" );
         log( "Loading " + ( isBiddingAd ? "bidding " : "" ) + ( isNative ? "native " : "" ) + adFormat.getLabel() + " ad for placement: " + placementId + "..." );
 
-        updateAgeRestrictedUser( parameters );
         updateLocationCollectionEnabled( parameters );
 
         if ( isNative )
@@ -231,13 +227,12 @@ public class SmaatoMediationAdapter
     //region MaxInterstitialAdapter
 
     @Override
-    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         final String bidResponse = parameters.getBidResponse();
         final String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( bidResponse ) ? "bidding " : "" ) + "interstitial ad for placement: " + placementId + "..." );
 
-        updateAgeRestrictedUser( parameters );
         updateLocationCollectionEnabled( parameters );
 
         ROUTER.addInterstitialAdapter( this, listener, placementId );
@@ -271,7 +266,7 @@ public class SmaatoMediationAdapter
     }
 
     @Override
-    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         final String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Showing interstitial ad for placement: " + placementId + "..." );
@@ -279,15 +274,21 @@ public class SmaatoMediationAdapter
         ROUTER.addShowingAdapter( this );
 
         interstitialAd = ROUTER.getInterstitialAd( placementId );
-        if ( interstitialAd != null && interstitialAd.isAvailableForPresentation() )
+        if ( interstitialAd == null || !interstitialAd.isAvailableForPresentation() )
         {
-            interstitialAd.showAd( activity );
-        }
-        else
-        {
-            log( "Interstitial not ready." );
+            log( "Interstitial ad failed to load - ad not ready" );
             ROUTER.onAdDisplayFailed( placementId, new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
+            return;
         }
+
+        if ( activity == null )
+        {
+            log( "Interstitial ad display failed: Activity is null" );
+            ROUTER.onAdDisplayFailed( placementId, MaxAdapterError.MISSING_ACTIVITY );
+            return;
+        }
+
+        interstitialAd.showAd( activity );
     }
 
     //endregion
@@ -295,13 +296,12 @@ public class SmaatoMediationAdapter
     //region MaxRewardedAdapter
 
     @Override
-    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         final String bidResponse = parameters.getBidResponse();
         final String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( bidResponse ) ? "bidding " : "" ) + "rewarded ad for placement: " + placementId + "..." );
 
-        updateAgeRestrictedUser( parameters );
         updateLocationCollectionEnabled( parameters );
 
         ROUTER.addRewardedAdapter( this, listener, placementId );
@@ -335,7 +335,7 @@ public class SmaatoMediationAdapter
     }
 
     @Override
-    public void showRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void showRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         final String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Showing rewarded ad for placement: " + placementId + "..." );
@@ -362,7 +362,7 @@ public class SmaatoMediationAdapter
     //region MaxNativeAdAdapter
 
     // @Override
-    public void loadNativeAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxNativeAdAdapterListener listener)
+    public void loadNativeAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxNativeAdAdapterListener listener)
     {
         final String bidResponse = parameters.getBidResponse();
         final String placementId = parameters.getThirdPartyAdPlacementId();
@@ -379,7 +379,6 @@ public class SmaatoMediationAdapter
             return;
         }
 
-        updateAgeRestrictedUser( parameters );
         updateLocationCollectionEnabled( parameters );
 
         final NativeAdRequest nativeAdRequest = createNativeAdRequest( placementId, bidResponse );
@@ -401,31 +400,17 @@ public class SmaatoMediationAdapter
     // TODO: Add local params support on init
     private void updateLocationCollectionEnabled(final MaxAdapterParameters parameters)
     {
-        if ( AppLovinSdk.VERSION_CODE >= 11_00_00_00 )
+        final Map<String, Object> localExtraParameters = parameters.getLocalExtraParameters();
+        final Object isLocationCollectionEnabledObj = localExtraParameters.get( "is_location_collection_enabled" );
+        if ( isLocationCollectionEnabledObj instanceof Boolean )
         {
-            final Map<String, Object> localExtraParameters = parameters.getLocalExtraParameters();
-            final Object isLocationCollectionEnabledObj = localExtraParameters.get( "is_location_collection_enabled" );
-            if ( isLocationCollectionEnabledObj instanceof Boolean )
-            {
-                log( "Setting location collection enabled: " + isLocationCollectionEnabledObj );
-                // NOTE: According to docs - this is disabled by default
-                SmaatoSdk.setGPSEnabled( (boolean) isLocationCollectionEnabledObj );
-            }
+            log( "Setting location collection enabled: " + isLocationCollectionEnabledObj );
+            // NOTE: According to docs - this is disabled by default
+            SmaatoSdk.setGPSEnabled( (boolean) isLocationCollectionEnabledObj );
         }
     }
 
-    private void updateAgeRestrictedUser(final MaxAdapterParameters parameters)
-    {
-        // NOTE: Adapter / mediated SDK has support for COPPA, but is not approved by Play Store and therefore will be filtered on COPPA traffic
-        // https://support.google.com/googleplay/android-developer/answer/9283445?hl=en
-        final Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
-        if ( isAgeRestrictedUser != null )
-        {
-            SmaatoSdk.setCoppa( isAgeRestrictedUser );
-        }
-    }
-
-    private Context getContext(Activity activity)
+    private Context getContext(@Nullable final Activity activity)
     {
         // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
         return ( activity != null ) ? activity.getApplication() : getApplicationContext();
@@ -560,8 +545,7 @@ public class SmaatoMediationAdapter
         {
             clickableViews.add( maxNativeAdView.getIconImageView() );
         }
-        final View mediaContentView = ( AppLovinSdk.VERSION_CODE >= 11000000 ) ? maxNativeAdView.getMediaContentViewGroup() : maxNativeAdView.getMediaContentView();
-        if ( maxNativeAd.getMediaView() != null && mediaContentView != null )
+        if ( maxNativeAd.getMediaView() != null && maxNativeAdView.getMediaContentViewGroup() != null )
         {
             clickableViews.add( maxNativeAdView.getMediaContentViewGroup() );
         }
@@ -588,8 +572,7 @@ public class SmaatoMediationAdapter
         {
             log( "AdView loaded" );
 
-            // Passing extra info such as creative id supported in 9.15.0+
-            if ( AppLovinSdk.VERSION_CODE >= 9150000 && !TextUtils.isEmpty( bannerView.getCreativeId() ) )
+            if ( !TextUtils.isEmpty( bannerView.getCreativeId() ) )
             {
                 final Bundle extraInfo = new Bundle( 1 );
                 extraInfo.putString( "creative_id", bannerView.getCreativeId() );
@@ -880,15 +863,7 @@ public class SmaatoMediationAdapter
     {
         private MaxSmaatoNativeAd(final Builder builder) { super( builder ); }
 
-        @SuppressWarnings("deprecation")
         @Override
-        public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
-        {
-            final List<View> clickableViews = SmaatoMediationAdapter.getClickableViews( this, maxNativeAdView );
-            prepareForInteraction( clickableViews, maxNativeAdView );
-        }
-
-        // @Override
         public boolean prepareForInteraction(final List<View> clickableViews, final ViewGroup container)
         {
             final NativeAdRenderer nativeAdRenderer = SmaatoMediationAdapter.this.nativeAdRenderer;
@@ -931,7 +906,7 @@ public class SmaatoMediationAdapter
         private boolean hasGrantedReward;
 
         @Override
-        void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener) { }
+        void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener) { }
 
         public InterstitialAd getInterstitialAd(final String placementId)
         {
@@ -1174,8 +1149,7 @@ public class SmaatoMediationAdapter
 
         private void onAdLoaded(final String placementId, final String creativeId)
         {
-            // Passing extra info such as creative id supported in 9.15.0+
-            if ( AppLovinSdk.VERSION_CODE >= 9150000 && !TextUtils.isEmpty( creativeId ) )
+            if ( !TextUtils.isEmpty( creativeId ) )
             {
                 final Bundle extraInfo = new Bundle( 1 );
                 extraInfo.putString( "creative_id", creativeId );

@@ -1,5 +1,24 @@
 # Changelog
 
+## 10.0.0.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 10.0.0.0
+* Certified with AmazonAdMarketplace SDK 10.0.0.
+
+## 9.10.4.0
+* Certified with AmazonAdMarketplace SDK 9.10.4.
+
+## 9.10.3.2
+* Fixed ad display failures caused by loading fullscreen ads without an `Activity` context. AmazonAdMarketplace SDK needs an `Activity` context.
+
+## 9.10.3.1
+* Add support for loading fullscreen ads without an `Activity` context.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 9.10.3.0
+* Certified with AmazonAdMarketplace SDK 9.10.3.
+
 ## 9.10.2.0
 * Certified with AmazonAdMarketplace SDK 9.10.2.
 

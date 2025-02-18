@@ -1,5 +1,39 @@
 # Changelog
 
+## 4.4.0.0
+* Certified with PubMatic SDK 4.4.0.
+
+## 4.3.0.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 4.3.0.0
+* Certified with PubMatic SDK 4.3.0.
+
+## 4.2.0.1
+* Updated to use bidding specific APIs .
+
+## 4.2.0.0
+* Certified with PubMatic SDK 4.2.0.
+* Removed redundant log output when initialization was already completed.
+
+## 4.1.0.0
+* Certified with PubMatic SDK 4.1.0.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 4.0.1.0
+* Certified with PubMatic SDK 4.0.1.
+
+## 4.0.0.0
+* Certified with PubMatic SDK 4.0.0.
+
+## 3.9.0.2
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Improve error handling.
+
+## 3.9.0.1
+* Skip signal collection for unsupported ad formats (applicable for test mode).
+
 ## 3.9.0.0
 * Certified with PubMatic SDK 3.9.0.
 * Updated PubMatic Maven repo URL.

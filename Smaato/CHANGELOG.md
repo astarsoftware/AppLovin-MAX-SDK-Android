@@ -1,5 +1,26 @@
 # Changelog
 
+## 22.7.2.0
+* Certified with Smaato SDK 22.7.2.
+
+## 22.7.1.2
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 22.7.1.1
+* Gracefully fail interstitial ad display if `Activity` context is null.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 22.7.1.0
+* Certified with Smaato SDK 22.7.1.
+
+## 22.7.0.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Remove deprecated native API usages.
+
+## 22.7.0.0
+* Certified with Smaato SDK 22.7.0.
+
 ## 22.6.3.0
 * Certified with Smaato SDK 22.6.3.
 

@@ -105,7 +105,7 @@ public class InMobiMediationAdapter
     }
 
     @Override
-    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
+    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, @Nullable final Activity activity, final MaxSignalCollectionListener callback)
     {
         if ( !InMobiSdk.isSDKInitialized() )
         {
@@ -115,7 +115,7 @@ public class InMobiMediationAdapter
 
         updatePrivacySettings( parameters );
 
-        String signal = InMobiSdk.getToken( getExtras( parameters ), null );
+        String signal = InMobiSdk.getToken( getExtras(), null );
         callback.onSignalCollected( signal );
     }
 
@@ -146,7 +146,7 @@ public class InMobiMediationAdapter
     }
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
         if ( initialized.compareAndSet( false, true ) )
         {
@@ -205,8 +205,6 @@ public class InMobiMediationAdapter
         }
         else
         {
-            log( "InMobi SDK already initialized" );
-
             onCompletionListener.onCompletion( status, null );
         }
     }
@@ -214,7 +212,7 @@ public class InMobiMediationAdapter
     //region MaxAdViewAdAdapter Methods
 
     @Override
-    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
     {
         final long placementId = Long.parseLong( parameters.getThirdPartyAdPlacementId() );
         final boolean isNative = parameters.getServerParameters().getBoolean( "is_native" );
@@ -239,7 +237,7 @@ public class InMobiMediationAdapter
             nativeAd = new InMobiNative( context,
                                          placementId,
                                          new NativeAdViewListener( parameters, adFormat, activity, listener ) );
-            nativeAd.setExtras( getExtras( parameters ) );
+            nativeAd.setExtras( getExtras() );
 
             if ( isBiddingAd )
             {
@@ -253,7 +251,7 @@ public class InMobiMediationAdapter
         else
         {
             adView = new InMobiBanner( context, placementId );
-            adView.setExtras( getExtras( parameters ) );
+            adView.setExtras( getExtras() );
             adView.setAnimationType( InMobiBanner.AnimationType.ANIMATION_OFF );
             adView.setEnableAutoRefresh( false ); // By default, refreshes every 60 seconds
             adView.setListener( new AdViewListener( listener ) );
@@ -303,7 +301,7 @@ public class InMobiMediationAdapter
     //region MaxInterstitialAdAdapter Methods
 
     @Override
-    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         final long placementId = Long.parseLong( parameters.getThirdPartyAdPlacementId() );
         log( "Loading interstitial ad for placement: " + placementId + "..." );
@@ -320,7 +318,7 @@ public class InMobiMediationAdapter
     }
 
     @Override
-    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         log( "Showing interstitial ad..." );
 
@@ -337,7 +335,7 @@ public class InMobiMediationAdapter
     //region MaxRewardedAdAdapter Methods
 
     @Override
-    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         final long placementId = Long.parseLong( parameters.getThirdPartyAdPlacementId() );
         log( "Loading rewarded ad for placement: " + placementId + "..." );
@@ -354,7 +352,7 @@ public class InMobiMediationAdapter
     }
 
     @Override
-    public void showRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void showRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         log( "Showing rewarded ad..." );
 
@@ -374,7 +372,7 @@ public class InMobiMediationAdapter
     //region MaxNativeAdAdapter Methods
 
     @Override
-    public void loadNativeAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxNativeAdAdapterListener listener)
+    public void loadNativeAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxNativeAdAdapterListener listener)
     {
         if ( !InMobiSdk.isSDKInitialized() )
         {
@@ -397,7 +395,7 @@ public class InMobiMediationAdapter
                                      placementId,
                                      new NativeAdListener( parameters, context, listener ) );
 
-        nativeAd.setExtras( getExtras( parameters ) );
+        nativeAd.setExtras( getExtras() );
 
         if ( isBiddingAd )
         {
@@ -426,10 +424,10 @@ public class InMobiMediationAdapter
         }
     }
 
-    private InMobiInterstitial loadFullscreenAd(long placementId, MaxAdapterResponseParameters parameters, InterstitialAdEventListener listener, Activity activity)
+    private InMobiInterstitial loadFullscreenAd(long placementId, MaxAdapterResponseParameters parameters, InterstitialAdEventListener listener, @Nullable final Activity activity)
     {
-        InMobiInterstitial interstitial = new InMobiInterstitial( activity, placementId, listener );
-        interstitial.setExtras( getExtras( parameters ) );
+        InMobiInterstitial interstitial = new InMobiInterstitial( getContext( activity ), placementId, listener );
+        interstitial.setExtras( getExtras() );
 
         updatePrivacySettings( parameters );
 
@@ -484,13 +482,6 @@ public class InMobiMediationAdapter
     {
         InMobiSdk.setPartnerGDPRConsent( getConsentJSONObject( parameters ) );
 
-        // NOTE: Only for family apps and not related to COPPA
-        Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
-        if ( isAgeRestrictedUser != null )
-        {
-            InMobiSdk.setIsAgeRestricted( isAgeRestrictedUser );
-        }
-
         Boolean isDoNotSell = parameters.isDoNotSell();
         if ( isDoNotSell != null )
         {
@@ -498,23 +489,17 @@ public class InMobiMediationAdapter
         }
     }
 
-    private Context getContext(@Nullable Activity activity)
+    private Context getContext(@Nullable final Activity activity)
     {
         // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
         return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
     }
 
-    private Map<String, String> getExtras(MaxAdapterParameters parameters)
+    private Map<String, String> getExtras()
     {
-        Map<String, String> extras = new HashMap<>( 3 );
+        Map<String, String> extras = new HashMap<>( 2 );
         extras.put( "tp", "c_applovin" );
         extras.put( "tp-ver", AppLovinSdk.VERSION );
-
-        Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
-        if ( isAgeRestrictedUser != null )
-        {
-            extras.put( "coppa", isAgeRestrictedUser ? "1" : "0" );
-        }
 
         return extras;
     }
@@ -555,16 +540,9 @@ public class InMobiMediationAdapter
         return null;
     }
 
-    private MaxNativeAdView createMaxNativeAdView(final MaxNativeAd maxNativeAd, final String templateName, final Activity activity)
+    private MaxNativeAdView createMaxNativeAdView(final MaxNativeAd maxNativeAd, final String templateName)
     {
-        if ( AppLovinSdk.VERSION_CODE >= 11_01_00_00 )
-        {
-            return new MaxNativeAdView( maxNativeAd, templateName, getApplicationContext() );
-        }
-        else
-        {
-            return new MaxNativeAdView( maxNativeAd, templateName, activity );
-        }
+        return new MaxNativeAdView( maxNativeAd, templateName, getApplicationContext() );
     }
 
     private static MaxAdapterError toMaxError(InMobiAdRequestStatus inMobiError)
@@ -655,8 +633,7 @@ public class InMobiMediationAdapter
         {
             log( "AdView loaded" );
 
-            // Passing extra info such as creative id supported in 9.15.0+
-            if ( AppLovinSdk.VERSION_CODE >= 9150000 && !TextUtils.isEmpty( adMetaInfo.getCreativeID() ) )
+            if ( !TextUtils.isEmpty( adMetaInfo.getCreativeID() ) )
             {
                 Bundle extraInfo = new Bundle( 1 );
                 extraInfo.putString( "creative_id", adMetaInfo.getCreativeID() );
@@ -735,8 +712,7 @@ public class InMobiMediationAdapter
         {
             log( "Interstitial loaded" );
 
-            // Passing extra info such as creative id supported in 9.15.0+
-            if ( AppLovinSdk.VERSION_CODE >= 9150000 && !TextUtils.isEmpty( adMetaInfo.getCreativeID() ) )
+            if ( !TextUtils.isEmpty( adMetaInfo.getCreativeID() ) )
             {
                 Bundle extraInfo = new Bundle( 1 );
                 extraInfo.putString( "creative_id", adMetaInfo.getCreativeID() );
@@ -828,8 +804,7 @@ public class InMobiMediationAdapter
         {
             log( "Rewarded ad loaded" );
 
-            // Passing extra info such as creative id supported in 9.15.0+
-            if ( AppLovinSdk.VERSION_CODE >= 9150000 && !TextUtils.isEmpty( adMetaInfo.getCreativeID() ) )
+            if ( !TextUtils.isEmpty( adMetaInfo.getCreativeID() ) )
             {
                 Bundle extraInfo = new Bundle( 1 );
                 extraInfo.putString( "creative_id", adMetaInfo.getCreativeID() );
@@ -925,7 +900,7 @@ public class InMobiMediationAdapter
         private final MaxAdFormat              adFormat;
         private final float                    mediaContentAspectRatio;
 
-        NativeAdViewListener(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+        NativeAdViewListener(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
         {
             this.placementId = parameters.getThirdPartyAdPlacementId();
             this.serverParameters = parameters.getServerParameters();
@@ -993,37 +968,24 @@ public class InMobiMediationAdapter
                             final String templateName = BundleUtils.getString( "template", "", serverParameters );
                             if ( templateName.contains( "vertical" ) )
                             {
-                                if ( AppLovinSdk.VERSION_CODE < 9_14_05_00 )
-                                {
-                                    log( "Vertical native banners are only supported on MAX SDK 9.14.5 and above. Default horizontal native template will be used." );
-                                }
-
                                 if ( templateName.equals( "vertical" ) )
                                 {
                                     String verticalTemplateName = ( adFormat == MaxAdFormat.LEADER ) ? "vertical_leader_template" : "vertical_media_banner_template";
-                                    maxNativeAdView = createMaxNativeAdView( maxInMobiNativeAd, verticalTemplateName, activity );
+                                    maxNativeAdView = createMaxNativeAdView( maxInMobiNativeAd, verticalTemplateName );
                                 }
                                 else
                                 {
-                                    maxNativeAdView = createMaxNativeAdView( maxInMobiNativeAd, templateName, activity );
+                                    maxNativeAdView = createMaxNativeAdView( maxInMobiNativeAd, templateName );
                                 }
-                            }
-                            else if ( AppLovinSdk.VERSION_CODE < 9_14_05_00 )
-                            {
-                                maxNativeAdView = createMaxNativeAdView( maxInMobiNativeAd,
-                                                                         AppLovinSdkUtils.isValidString( templateName ) ? templateName : "no_body_banner_template",
-                                                                         activity );
                             }
                             else
                             {
-                                maxNativeAdView = createMaxNativeAdView( maxInMobiNativeAd,
-                                                                         AppLovinSdkUtils.isValidString( templateName ) ? templateName : "media_banner_template",
-                                                                         activity );
+                                maxNativeAdView = createMaxNativeAdView( maxInMobiNativeAd, AppLovinSdkUtils.isValidString( templateName ) ? templateName : "media_banner_template" );
                             }
 
                             maxInMobiNativeAd.prepareForInteraction( getClickableViews( maxNativeAdView ), maxNativeAdView );
 
-                            if ( AppLovinSdk.VERSION_CODE >= 9_15_00_00 && AppLovinSdkUtils.isValidString( adMetaInfo.getCreativeID() ) )
+                            if ( AppLovinSdkUtils.isValidString( adMetaInfo.getCreativeID() ) )
                             {
                                 Bundle extraInfo = new Bundle( 1 );
                                 extraInfo.putString( "creative_id", adMetaInfo.getCreativeID() );
@@ -1260,12 +1222,6 @@ public class InMobiMediationAdapter
         }
 
         @Override
-        public void prepareViewForInteraction(final MaxNativeAdView maxNativeAdView)
-        {
-            prepareForInteraction( InMobiMediationAdapter.this.getClickableViews( maxNativeAdView ), maxNativeAdView );
-        }
-
-        // @Override
         public boolean prepareForInteraction(final List<View> clickableViews, final ViewGroup container)
         {
             final InMobiNative nativeAd = InMobiMediationAdapter.this.nativeAd;
@@ -1324,20 +1280,7 @@ public class InMobiMediationAdapter
                 public void onClick(final View view)
                 {
                     log( "Native ad clicked from click listener" );
-
                     nativeAd.reportAdClickAndOpenLandingPage();
-                    if ( format == MaxAdFormat.NATIVE )
-                    {
-                        ( (MaxNativeAdAdapterListener) listener ).onNativeAdClicked();
-                    }
-                    else if ( format.isAdViewAd() )
-                    {
-                        ( (MaxAdViewAdapterListener) listener ).onAdViewAdClicked();
-                    }
-                    else
-                    {
-                        log( "Unsupported ad format: must be adView ad or native ad" );
-                    }
                 }
             };
 

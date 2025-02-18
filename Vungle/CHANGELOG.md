@@ -1,5 +1,38 @@
 # Changelog
 
+## 7.4.3.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 7.4.3.0
+* Certified with Vungle SDK 7.4.3.
+* Updated error codes.
+* Fixed the media view in native ads to be responsive to clicks.
+
+## 7.4.2.2
+* Removed redundant log output when initialization was already completed.
+* Update ProGuard rules to prevent obfuscating Vungle SDK classes.
+
+## 7.4.2.1
+* Update signal collection API.
+
+## 7.4.2.0
+* Certified with Vungle SDK 7.4.2.
+
+## 7.4.1.4
+* Updated deprecated ad view APIs.
+
+## 7.4.1.3
+* Add support for loading native ads without an `Activity` context.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 7.4.1.2
+* Support for native ads in external plugins (React Native/Flutter).
+
+## 7.4.1.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Remove deprecated native API usages.
+
 ## 7.4.1.0
 * Certified with Vungle SDK 7.4.1.
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## 2025.1.10.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 2025.1.10.0
+* Certified with Line SDK 2.9.20250110.
+
+## 2024.11.29.0
+* Certified with Line SDK 2.9.20241129.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+* Removed redundant log output when initialization was already completed.
+
+## 2024.8.27.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Remove deprecated native API usages.
+
 ## 2024.8.27.0
 * Certified with Line SDK 2.8.20240827.
 

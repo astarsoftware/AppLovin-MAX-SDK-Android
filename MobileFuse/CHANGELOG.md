@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.9.0.0
+* Certified with MobileFuse SDK 1.9.0.
+
+## 1.8.2.2
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 1.8.2.1
+* Fix NPE caused when clearing native ad listener while destroying the ad.
+* Pass adapter version to MobileFuse SDK.
+
+## 1.8.2.0
+* Certified with MobileFuse SDK 1.8.2.
+
+## 1.8.1.0
+* Certified with MobileFuse SDK 1.8.1.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+* Removed redundant log output when initialization was already completed.
+
+## 1.8.0.1
+* Remove passing in of consent string as it has been deprecated.
+
+## 1.8.0.0
+* Certified with MobileFuse SDK 1.8.0.
+
+## 1.7.6.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Remove deprecated native API usages.
+
 ## 1.7.6.0
 * Certified with MobileFuse SDK 1.7.6.
 

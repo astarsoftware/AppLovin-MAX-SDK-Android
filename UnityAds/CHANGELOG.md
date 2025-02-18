@@ -1,5 +1,32 @@
 # Changelog
 
+## 4.13.1.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 4.13.1.0
+* Certified with UnityAds SDK 4.13.1.
+
+## 4.13.0.0
+* Certified with UnityAds SDK 4.13.0.
+
+## 4.12.5.0
+* Certified with UnityAds SDK 4.12.5.
+* Removed redundant log output when initialization was already completed.
+
+## 4.12.4.0
+* Certified with UnityAds SDK 4.12.4.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 4.12.3.1
+* Fix caught NPE caused by retrieving the application context with a null `Activity`.
+
+## 4.12.3.0
+* Certified with UnityAds SDK 4.12.3.
+
+## 4.12.2.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+
 ## 4.12.2.0
 * Certified with UnityAds SDK 4.12.2, which includes a fix for the initialization issue caused by missing ProGuard rules introduced in version 4.11.0.
 

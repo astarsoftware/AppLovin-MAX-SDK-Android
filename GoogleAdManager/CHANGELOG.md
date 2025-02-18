@@ -1,5 +1,34 @@
 # Changelog
 
+## 23.6.0.3
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 23.6.0.2
+* Add support for [inline adaptive banners in MRECs](https://developers.applovin.com/en/max/android/ad-formats/banner-and-mrec-ads/#inline-adaptive-banners-in-mrecs).
+* Remove support for rewarded interstitial ads.
+
+## 23.6.0.1
+* Fixed native ads to no longer require the media view in external plugins to be clickable.
+
+## 23.6.0.0
+* Certified with GoogleAdManager SDK 23.6.0.
+
+## 23.5.0.0
+* Certified with GoogleAdManager SDK 23.5.0.
+* Added comments noting that fullscreen ads can be shown without an `Activity` context.
+
+## 23.4.0.1
+* Add support for loading ads without an `Activity` context.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 23.4.0.0
+* Certified with GoogleAdManager SDK 23.4.0.
+
+## 23.3.0.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Remove deprecated native API usages.
+
 ## 23.3.0.0
 * Certified with GoogleAdManager SDK 23.3.0.
 

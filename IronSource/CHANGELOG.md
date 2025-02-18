@@ -1,5 +1,44 @@
 # Changelog
 
+## 8.7.0.0.0
+* Certified with IronSource SDK 8.7.0.
+
+## 8.6.1.0.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 8.6.1.0.0
+* Certified with IronSource SDK 8.6.1.
+
+## 8.6.0.0.0
+* Certified with IronSource SDK 8.6.0.
+
+## 8.5.0.0.0
+* Certified with IronSource SDK 8.5.0.
+
+## 8.4.0.0.2
+* Prevent destroying currently displayed banners/MRECs when loading others with the same instance ID.
+* Ensure that initialization completion handler is called for subsequent initializations.
+
+## 8.4.0.0.1
+* Gracefully fail fullscreen ad display if `Activity` context is null.
+* Added comments noting that fullscreen ads can load without an `Activity` context.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 8.4.0.0.0
+* Certified with IronSource SDK 8.4.0.
+
+## 8.3.0.0.2
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+
+## 8.3.0.0.1
+* Pass in application context instead of Activity context (which can potentially be null) for bidding banners/MRECs.
+* Gracefully fail zone-based ad requests for banners/MRECs instead.
+
+## 8.3.0.0.0
+* Certified with IronSource SDK 8.3.0.
+* Add support for passing mediation type to SDK.
+
 ## 8.2.1.0.0
 * Certified with IronSource SDK 8.2.1.
 

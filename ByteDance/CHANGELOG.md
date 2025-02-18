@@ -1,5 +1,54 @@
 # Changelog
 
+## 6.5.0.3.0
+* Certified with ByteDance SDK 6.5.0.3.
+
+## 6.4.0.7.0
+* Certified with ByteDance SDK 6.4.0.7.
+
+## 6.4.0.6.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 6.4.0.6.0
+* Certified with ByteDance SDK 6.4.0.6.
+
+## 6.4.0.5.0
+* Certified with ByteDance SDK 6.4.0.5.
+
+## 6.4.0.4.0
+* Certified with ByteDance SDK 6.4.0.4.
+
+## 6.4.0.3.0
+* Certified with ByteDance SDK 6.4.0.3.
+
+## 6.4.0.2.0
+* Certified with ByteDance SDK 6.4.0.2.
+* Removed redundant log output when initialization was already completed.
+
+## 6.3.0.4.0
+* Certified with ByteDance SDK 6.3.0.4.
+
+## 6.3.0.3.0
+* Certified with ByteDance SDK 6.3.0.3.
+
+## 6.3.0.2.0
+* Certified with ByteDance SDK 6.3.0.2.
+
+## 6.2.0.8.0
+* Certified with ByteDance SDK 6.2.0.8.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 6.2.0.7.0
+* Certified with ByteDance SDK 6.2.0.7.
+
+## 6.2.0.6.0
+* Certified with ByteDance SDK 6.2.0.6.
+
+## 6.2.0.5.2
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Remove deprecated native API usages.
+
 ## 6.2.0.5.1
 * Load Pangle ads on a background thread to reduce ANRs on MAX SDK version 12.6.1 or higher.
 

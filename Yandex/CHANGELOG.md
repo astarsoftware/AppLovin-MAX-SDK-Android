@@ -1,5 +1,53 @@
 # Changelog
 
+## 7.10.1.0
+* Certified with Yandex SDK 7.10.1.
+
+## 7.10.0.0
+* Certified with Yandex SDK 7.10.0.
+
+## 7.9.0.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 7.9.0.0
+* Certified with Yandex SDK 7.9.0.
+
+## 7.8.1.0
+* Certified with Yandex SDK 7.8.1.
+
+## 7.8.0.0
+* Certified with Yandex SDK 7.8.0.
+
+## 7.7.0.0
+* Certified with Yandex SDK 7.7.0.
+* Removed exception throwing if unable to map ad view ad format to that of the network's.
+
+## 7.6.0.1
+* Add support for loading rewarded ads and configuring bidder token requests without `Activity` context.
+
+## 7.6.0.0
+* Certified with Yandex SDK 7.6.0.
+
+## 7.5.0.3
+* Gracefully fail fullscreen ad display if `Activity` context is null.
+* Add support for loading bidder token without an `Activity` context.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 7.5.0.2
+* Add support for native ads in external plugins.
+
+## 7.5.0.1
+* Simplify native ad options view binding.
+* Ensure non-empty parameters are passed in ad requests.
+
+## 7.5.0.0
+* Certified with Yandex SDK 7.5.0.
+
+## 7.4.0.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Remove deprecated native API usages.
+
 ## 7.4.0.0
 * Certified with Yandex SDK 7.4.0.
 

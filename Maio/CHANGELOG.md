@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.0.3.1
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 2.0.3.0
+* Certified with Maio SDK 2.0.3.
+
+## 2.0.2.0
+* Certified with Maio SDK 2.0.2.
+
+## 2.0.1.2
+* Updated ProGuard rules.
+
+## 2.0.1.1
+* Improve error code mapping by using Maio's major error codes.
+
+## 2.0.1.0
+* Certified with Maio SDK 2.0.1.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 2.0.0.0
+* Certified with Maio SDK 2.0.0.
+ 
 ## 1.1.16.3
 * Now requires MAX SDK version 9.8.2 or higher.
 * Add additional details for ad display failures.
@@ -43,7 +65,7 @@
 
 ## 1.1.10.1
 * Add configuration of rewards from server parameters.
-* Add proguard rule for Mediation Debugger support.
+* Add ProGuard rule for Mediation Debugger support.
 
 ## 1.1.10.0
 * Certified with SDK 1.1.10.

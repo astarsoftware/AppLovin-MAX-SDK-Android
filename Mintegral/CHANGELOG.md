@@ -1,5 +1,51 @@
 # Changelog
 
+## 16.9.41.0
+* Certified with Mintegral SDK 16.9.41.
+
+## 16.9.31.2
+* Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
+
+## 16.9.31.1
+* Call `setConsentStatus(Context)` API when `hasUserConsent` is `null` to ensure that Mintegral's SDK is able to read the TCF string from device storage.
+* Update to use new initialization API.
+
+## 16.9.31.0
+* Certified with Mintegral SDK 16.9.31.
+
+## 16.9.21.0
+* Certified with Mintegral SDK 16.9.21.
+
+## 16.9.11.0
+* Certified with Mintegral SDK 16.9.11.
+
+## 16.8.91.0
+* Certified with Mintegral SDK 16.8.91.
+
+## 16.8.81.0
+* Certified with Mintegral SDK 16.8.81.
+
+## 16.8.71.0
+* Certified with Mintegral SDK 16.8.71.
+
+## 16.8.61.1
+* Add support for loading fullscreen ads without an `Activity` context.
+* Annotated all `Activity` parameters with `@Nullable` to better avoid potential NPEs.
+
+## 16.8.61.0
+* Certified with Mintegral SDK 16.8.61.
+
+## 16.8.51.2
+* Update to use new interstitial ad APIs.
+
+## 16.8.51.1
+* Requires minimum AppLovin MAX SDK version be 13.0.0.
+* Removed support for COPPA.
+* Remove deprecated native API usages.
+
+## 16.8.51.0
+* Certified with Mintegral SDK 16.8.51.
+
 ## 16.8.41.0
 * Certified with Mintegral SDK 16.8.41.
 

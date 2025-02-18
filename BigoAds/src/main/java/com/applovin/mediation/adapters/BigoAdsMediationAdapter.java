@@ -51,6 +51,7 @@ import sg.bigo.ads.api.AdInteractionListener;
 import sg.bigo.ads.api.AdLoadListener;
 import sg.bigo.ads.api.AdOptionsView;
 import sg.bigo.ads.api.AdSize;
+import sg.bigo.ads.api.AdTag;
 import sg.bigo.ads.api.BannerAd;
 import sg.bigo.ads.api.BannerAdLoader;
 import sg.bigo.ads.api.BannerAdRequest;
@@ -89,6 +90,13 @@ public class BigoAdsMediationAdapter
         extends MediationAdapterBase
         implements MaxSignalProvider, MaxInterstitialAdapter, MaxAppOpenAdapter, MaxRewardedAdapter, MaxAdViewAdapter, MaxNativeAdAdapter
 {
+    private static final int TITLE_LABEL_TAG          = 1;
+    private static final int MEDIA_VIEW_CONTAINER_TAG = 2;
+    private static final int ICON_VIEW_TAG            = 3;
+    private static final int BODY_VIEW_TAG            = 4;
+    private static final int CALL_TO_ACTION_VIEW_TAG  = 5;
+    private static final int ADVERTISER_VIEW_TAG      = 8;
+
     private static final String MEDIATION_INFO;
 
     private static final AtomicBoolean        initialized = new AtomicBoolean();
@@ -128,7 +136,7 @@ public class BigoAdsMediationAdapter
     public BigoAdsMediationAdapter(final AppLovinSdk sdk) { super( sdk ); }
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
         if ( initialized.compareAndSet( false, true ) )
         {
@@ -165,7 +173,6 @@ public class BigoAdsMediationAdapter
         }
         else
         {
-            log( "Bigo Ads SDK attempted initialization already" );
             onCompletionListener.onCompletion( status, null );
         }
     }
@@ -173,7 +180,7 @@ public class BigoAdsMediationAdapter
     @Override
     public String getSdkVersion()
     {
-        return BigoAdSdk.getSDKVersion();
+        return BigoAdSdk.getSDKVersionName();
     }
 
     @Override
@@ -225,7 +232,7 @@ public class BigoAdsMediationAdapter
     }
 
     @Override
-    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
+    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, @Nullable final Activity activity, final MaxSignalCollectionListener callback)
     {
         log( "Collecting signal..." );
 
@@ -236,7 +243,7 @@ public class BigoAdsMediationAdapter
     }
 
     @Override
-    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         final String slotId = parameters.getThirdPartyAdPlacementId();
         log( "Loading interstitial ad for slot id: " + slotId + "..." );
@@ -266,7 +273,7 @@ public class BigoAdsMediationAdapter
     }
 
     @Override
-    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         final String slotId = parameters.getThirdPartyAdPlacementId();
         log( "Showing interstitial ad for slot id: " + slotId + "..." );
@@ -337,7 +344,7 @@ public class BigoAdsMediationAdapter
     }
 
     @Override
-    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         final String slotId = parameters.getThirdPartyAdPlacementId();
         log( "Loading rewarded ad for slot id: " + slotId + "..." );
@@ -367,7 +374,7 @@ public class BigoAdsMediationAdapter
     }
 
     @Override
-    public void showRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void showRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         final String slotId = parameters.getThirdPartyAdPlacementId();
         log( "Showing rewarded ad for slot id: " + slotId + "..." );
@@ -386,7 +393,7 @@ public class BigoAdsMediationAdapter
     }
 
     @Override
-    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
     {
         final String slotId = parameters.getThirdPartyAdPlacementId();
         final boolean isNative = parameters.getServerParameters().getBoolean( "is_native" );
@@ -419,6 +426,16 @@ public class BigoAdsMediationAdapter
         }
         else
         {
+            AdSize adSize = toAdSize( adFormat );
+            if ( adSize == null )
+            {
+                MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.ERROR_CODE_INVALID_CONFIGURATION, "Unsupported ad format: " + adFormat );
+                log( adFormat.getLabel() + " ad failed to load with error: " + adapterError );
+                listener.onAdViewAdLoadFailed( adapterError );
+
+                return;
+            }
+
             adViewListener = new AdViewListener( slotId, adFormat, listener );
             final BannerAdLoader bannerAdLoader = new BannerAdLoader.Builder()
                     .withAdLoadListener( adViewListener )
@@ -428,7 +445,7 @@ public class BigoAdsMediationAdapter
             final BannerAdRequest bannerAdRequest = new BannerAdRequest.Builder()
                     .withSlotId( slotId )
                     .withBid( parameters.getBidResponse() )
-                    .withAdSizes( toAdSize( adFormat ) )
+                    .withAdSizes( adSize )
                     .build();
 
             bannerAdLoader.loadAd( bannerAdRequest );
@@ -436,7 +453,7 @@ public class BigoAdsMediationAdapter
     }
 
     @Override
-    public void loadNativeAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxNativeAdAdapterListener listener)
+    public void loadNativeAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxNativeAdAdapterListener listener)
     {
         final String slotId = parameters.getThirdPartyAdPlacementId();
         log( "Loading native ad for slot id: " + slotId + "..." );
@@ -465,6 +482,7 @@ public class BigoAdsMediationAdapter
         nativeAdLoader.loadAd( nativeAdRequest );
     }
 
+    @Nullable
     private AdSize toAdSize(final MaxAdFormat adFormat)
     {
         // TODO: Bigo does not currently have a leader of size 728x90 but they will be adding it in a later SDK release.
@@ -479,7 +497,7 @@ public class BigoAdsMediationAdapter
         }
         else
         {
-            throw new IllegalArgumentException( "Invalid ad format: " + adFormat );
+            return null;
         }
     }
 
@@ -1006,7 +1024,8 @@ public class BigoAdsMediationAdapter
                     .setCallToAction( ad.getCallToAction() )
                     .setIconView( iconView )
                     .setOptionsView( optionsView )
-                    .setMediaView( mediaView );
+                    .setMediaView( mediaView )
+                    .setMediaContentAspectRatio( ad.getMediaContentAspectRatio() );
 
             final MaxBigoAdsNativeAd maxNativeAd = new MaxBigoAdsNativeAd( builder );
 
@@ -1074,31 +1093,75 @@ public class BigoAdsMediationAdapter
                 return false;
             }
 
-            MaxNativeAdView maxNativeAdView = (MaxNativeAdView) container;
-
-            MediaView mediaView = null;
-            if ( maxNativeAdView.getMediaContentViewGroup() != null )
+            // Native integrations
+            if ( container instanceof MaxNativeAdView )
             {
-                mediaView = (MediaView) getMediaView();
-            }
+                MaxNativeAdView maxNativeAdView = (MaxNativeAdView) container;
 
-            ImageView iconView = null;
-            if ( maxNativeAdView.getIconContentView() != null )
-            {
-                iconView = (ImageView) getIconView();
-            }
-            else if ( maxNativeAdView.getIconImageView() != null )
-            {
-                iconView = maxNativeAdView.getIconImageView();
-            }
+                MediaView mediaView = null;
+                if ( maxNativeAdView.getMediaContentViewGroup() != null )
+                {
+                    mediaView = (MediaView) getMediaView();
+                }
 
-            AdOptionsView optionsView = null;
-            if ( maxNativeAdView.getOptionsContentViewGroup() != null )
-            {
-                optionsView = (AdOptionsView) getOptionsView();
-            }
+                ImageView iconView = null;
+                if ( maxNativeAdView.getIconImageView() != null )
+                {
+                    iconView = maxNativeAdView.getIconImageView();
+                }
 
-            nativeAd.registerViewForInteraction( container, mediaView, iconView, optionsView, clickableViews );
+                AdOptionsView optionsView = null;
+                if ( maxNativeAdView.getOptionsContentViewGroup() != null )
+                {
+                    optionsView = (AdOptionsView) getOptionsView();
+                }
+
+                nativeAd.registerViewForInteraction( container, mediaView, iconView, optionsView, clickableViews );
+            }
+            // Plugins
+            else
+            {
+                ImageView iconView = null;
+                MediaView mediaView = null;
+
+                for ( final View view : clickableViews )
+                {
+                    Object viewTag = view.getTag();
+                    if ( viewTag == null ) continue;
+
+                    int tag = (int) viewTag;
+
+                    if ( tag == TITLE_LABEL_TAG )
+                    {
+                        view.setTag( AdTag.TITLE );
+                    }
+                    else if ( tag == ICON_VIEW_TAG )
+                    {
+                        if ( view instanceof ImageView )
+                        {
+                            iconView = (ImageView) view;
+                        }
+                    }
+                    else if ( tag == MEDIA_VIEW_CONTAINER_TAG )
+                    {
+                        mediaView = (MediaView) getMediaView();
+                    }
+                    else if ( tag == BODY_VIEW_TAG )
+                    {
+                        view.setTag( AdTag.DESCRIPTION );
+                    }
+                    else if ( tag == CALL_TO_ACTION_VIEW_TAG )
+                    {
+                        view.setTag( AdTag.CALL_TO_ACTION );
+                    }
+                    else if ( tag == ADVERTISER_VIEW_TAG )
+                    {
+                        view.setTag( AdTag.SPONSORED_LABEL );
+                    }
+                }
+
+                nativeAd.registerViewForInteraction( container, mediaView, iconView, null, clickableViews );
+            }
 
             return true;
         }

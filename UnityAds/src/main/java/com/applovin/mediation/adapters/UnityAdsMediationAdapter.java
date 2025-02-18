@@ -38,6 +38,8 @@ import com.unity3d.services.banners.UnityBannerSize;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import androidx.annotation.Nullable;
+
 /**
  * This is a mediation adapterWrapper for the Unity Ads SDK
  */
@@ -55,7 +57,7 @@ public class UnityAdsMediationAdapter
     public UnityAdsMediationAdapter(final AppLovinSdk sdk) { super( sdk ); }
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
         final Context context = getContext( activity );
 
@@ -97,7 +99,6 @@ public class UnityAdsMediationAdapter
         }
         else
         {
-            log( "UnityAds SDK already initialized" );
             onCompletionListener.onCompletion( initializationStatus, null );
         }
     }
@@ -125,11 +126,11 @@ public class UnityAdsMediationAdapter
     }
 
     @Override
-    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
+    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, @Nullable final Activity activity, final MaxSignalCollectionListener callback)
     {
         log( "Collecting signal..." );
 
-        updatePrivacyConsent( parameters, activity.getApplicationContext() );
+        updatePrivacyConsent( parameters, getContext( activity ) );
 
         UnityAds.getToken( new IUnityAdsTokenListener()
         {
@@ -143,12 +144,12 @@ public class UnityAdsMediationAdapter
     }
 
     @Override
-    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + "interstitial ad for placement \"" + placementId + "\"..." );
 
-        updatePrivacyConsent( parameters, activity.getApplicationContext() );
+        updatePrivacyConsent( parameters, getContext( activity ) );
 
         // Every ad needs a random ID associated with each load and show
         biddingAdId = UUID.randomUUID().toString();
@@ -173,7 +174,7 @@ public class UnityAdsMediationAdapter
     }
 
     @Override
-    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Showing interstitial ad for placement \"" + placementId + "\"..." );
@@ -211,12 +212,12 @@ public class UnityAdsMediationAdapter
     }
 
     @Override
-    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + "rewarded ad for placement \"" + placementId + "\"..." );
 
-        updatePrivacyConsent( parameters, activity.getApplicationContext() );
+        updatePrivacyConsent( parameters, getContext( activity ) );
 
         // Every ad needs a random ID associated with each load and show
         biddingAdId = UUID.randomUUID().toString();
@@ -241,7 +242,7 @@ public class UnityAdsMediationAdapter
     }
 
     @Override
-    public void showRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void showRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Showing rewarded ad for placement \"" + placementId + "\"..." );
@@ -287,7 +288,7 @@ public class UnityAdsMediationAdapter
     }
 
     @Override
-    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
     {
         String placementId = parameters.getThirdPartyAdPlacementId();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + adFormat.getLabel() + " ad for placement \"" + placementId + "\"..." );
@@ -302,7 +303,7 @@ public class UnityAdsMediationAdapter
             return;
         }
 
-        updatePrivacyConsent( parameters, activity.getApplicationContext() );
+        updatePrivacyConsent( parameters, getContext( activity ) );
 
         // Every ad needs a random ID associated with each load and show
         biddingAdId = UUID.randomUUID().toString();
@@ -496,16 +497,9 @@ public class UnityAdsMediationAdapter
 
         privacyMetaData.set( "privacy.mode", "mixed" );
         privacyMetaData.commit();
-
-        Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
-        if ( isAgeRestrictedUser != null )
-        {
-            privacyMetaData.set( "user.nonbehavioral", isAgeRestrictedUser );
-            privacyMetaData.commit();
-        }
     }
 
-    private Context getContext(Activity activity)
+    private Context getContext(@Nullable final Activity activity)
     {
         // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
         return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();

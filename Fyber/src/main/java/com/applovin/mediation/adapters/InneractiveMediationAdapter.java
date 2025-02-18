@@ -48,6 +48,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import androidx.annotation.Nullable;
+
+import static com.applovin.sdk.AppLovinSdkUtils.isValidString;
+
 public class InneractiveMediationAdapter
         extends MediationAdapterBase
         implements MaxSignalProvider, MaxInterstitialAdapter, MaxRewardedAdapter, MaxAdViewAdapter
@@ -66,7 +70,7 @@ public class InneractiveMediationAdapter
     public InneractiveMediationAdapter(final AppLovinSdk sdk) { super( sdk ); }
 
     @Override
-    public void initialize(final MaxAdapterInitializationParameters parameters, final Activity activity, final OnCompletionListener onCompletionListener)
+    public void initialize(final MaxAdapterInitializationParameters parameters, @Nullable final Activity activity, final OnCompletionListener onCompletionListener)
     {
         if ( initialized.compareAndSet( false, true ) )
         {
@@ -100,11 +104,6 @@ public class InneractiveMediationAdapter
         }
         else
         {
-            if ( InneractiveAdManager.wasInitialized() )
-            {
-                log( "Inneractive SDK already initialized" );
-            }
-
             onCompletionListener.onCompletion( status, null );
         }
     }
@@ -118,7 +117,7 @@ public class InneractiveMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-        return "8.3.1.0";
+        return "8.3.6.0";
     }
 
     @Override
@@ -146,7 +145,7 @@ public class InneractiveMediationAdapter
     }
 
     @Override
-    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, final Activity activity, final MaxSignalCollectionListener callback)
+    public void collectSignal(final MaxAdapterSignalCollectionParameters parameters, @Nullable final Activity activity, final MaxSignalCollectionListener callback)
     {
         log( "Collecting signal..." );
 
@@ -157,7 +156,7 @@ public class InneractiveMediationAdapter
     }
 
     @Override
-    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         log( "Loading " + ( isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + "interstitial ad for spot id \"" + parameters.getThirdPartyAdPlacementId() + "\"..." );
 
@@ -177,9 +176,8 @@ public class InneractiveMediationAdapter
             {
                 log( "Interstitial shown" );
 
-                // Passing extra info such as creative id supported in 9.15.0+
                 String creativeId = impressionData.getCreativeId();
-                if ( AppLovinSdk.VERSION_CODE >= 9150000 && !TextUtils.isEmpty( creativeId ) )
+                if ( !TextUtils.isEmpty( creativeId ) )
                 {
                     Bundle extraInfo = new Bundle( 1 );
                     extraInfo.putString( "creative_id", creativeId );
@@ -262,7 +260,7 @@ public class InneractiveMediationAdapter
     }
 
     @Override
-    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxInterstitialAdapterListener listener)
+    public void showInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
         log( "Showing interstitial ad..." );
 
@@ -279,7 +277,7 @@ public class InneractiveMediationAdapter
     }
 
     @Override
-    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         log( "Loading " + ( isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + "rewarded ad for spot id \"" + parameters.getThirdPartyAdPlacementId() + "\"..." );
 
@@ -323,9 +321,8 @@ public class InneractiveMediationAdapter
             {
                 log( "Rewarded ad shown" );
 
-                // Passing extra info such as creative id supported in 9.15.0+
                 String creativeId = impressionData.getCreativeId();
-                if ( AppLovinSdk.VERSION_CODE >= 9150000 && !TextUtils.isEmpty( creativeId ) )
+                if ( !TextUtils.isEmpty( creativeId ) )
                 {
                     Bundle extraInfo = new Bundle( 1 );
                     extraInfo.putString( "creative_id", creativeId );
@@ -418,7 +415,7 @@ public class InneractiveMediationAdapter
     }
 
     @Override
-    public void showRewardedAd(final MaxAdapterResponseParameters parameters, final Activity activity, final MaxRewardedAdapterListener listener)
+    public void showRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
         log( "Showing rewarded ad..." );
 
@@ -438,7 +435,7 @@ public class InneractiveMediationAdapter
     }
 
     @Override
-    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, final Activity activity, final MaxAdViewAdapterListener listener)
+    public void loadAdViewAd(final MaxAdapterResponseParameters parameters, final MaxAdFormat adFormat, @Nullable final Activity activity, final MaxAdViewAdapterListener listener)
     {
         log( "Loading " + ( isValidString( parameters.getBidResponse() ) ? "bidding " : "" ) + adFormat.getLabel() + " ad for spot id \"" + parameters.getThirdPartyAdPlacementId() + "\"..." );
 
@@ -455,9 +452,8 @@ public class InneractiveMediationAdapter
             {
                 log( "AdView shown" );
 
-                // Passing extra info such as creative id supported in 9.15.0+
                 String creativeId = impressionData.getCreativeId();
-                if ( AppLovinSdk.VERSION_CODE >= 9150000 && !TextUtils.isEmpty( creativeId ) )
+                if ( !TextUtils.isEmpty( creativeId ) )
                 {
                     Bundle extraInfo = new Bundle( 1 );
                     extraInfo.putString( "creative_id", creativeId );
@@ -524,11 +520,20 @@ public class InneractiveMediationAdapter
             @Override
             public void onInneractiveSuccessfulAdRequest(final InneractiveAdSpot inneractiveAdSpot)
             {
+                // Extract a local variable to avoid a race condition where adViewGroup could be destroyed while this callback is invoked
+                final ViewGroup currentAdViewGroup = adViewGroup;
+                if ( currentAdViewGroup == null )
+                {
+                    log( "AdView container destroyed before it could be loaded" );
+                    listener.onAdViewAdLoadFailed( MaxAdapterError.INVALID_LOAD_STATE );
+                    return;
+                }
+
                 if ( inneractiveAdSpot.isReady() )
                 {
                     log( "AdView loaded" );
-                    controller.bindView( adViewGroup );
-                    listener.onAdViewAdLoaded( adViewGroup );
+                    controller.bindView( currentAdViewGroup );
+                    listener.onAdViewAdLoaded( currentAdViewGroup );
                 }
                 else
                 {
@@ -594,12 +599,6 @@ public class InneractiveMediationAdapter
         else
         {
             InneractiveAdManager.setUSPrivacyString( "1---" );
-        }
-
-        Boolean isAgeRestrictedUser = parameters.isAgeRestrictedUser();
-        if ( isAgeRestrictedUser != null && isAgeRestrictedUser )
-        {
-            InneractiveAdManager.currentAudienceAppliesToCoppa();
         }
     }
 
@@ -667,7 +666,7 @@ public class InneractiveMediationAdapter
         return new MaxAdapterError( adapterError.getErrorCode(), adapterError.getErrorMessage(), adapterErrorCode, adapterErrorStr );
     }
 
-    private Context getContext(Activity activity)
+    private Context getContext(@Nullable final Activity activity)
     {
         // NOTE: `activity` can only be null in 11.1.0+, and `getApplicationContext()` is introduced in 11.1.0
         return ( activity != null ) ? activity.getApplicationContext() : getApplicationContext();
