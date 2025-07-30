@@ -1,5 +1,43 @@
 # Changelog
 
+## 7.15.0.0
+* Certified with Yandex SDK 7.15.0.
+
+## 7.14.1.0
+* Certified with Yandex SDK 7.14.1.
+
+## 7.14.0.0
+* Certified with Yandex SDK 7.14.0.
+* Updated ad display failed error code.
+
+## 7.13.0.0
+* Certified with Yandex SDK 7.13.0.
+
+## 7.12.3.0
+* Certified with Yandex SDK 7.12.3.
+
+## 7.12.2.1
+* Add support for [adaptive banners](https://developers.applovin.com/en/max/android/ad-formats/banner-and-mrec-ads#adaptive-banners) & inline adaptive ads in both [banners](https://developers.applovin.com/en/max/android/ad-formats/banner-and-mrec-ads#inline-adaptive-banners) and [MRECs](https://developers.applovin.com/en/max/android/ad-formats/banner-and-mrec-ads/#inline-adaptive-mrecs). Requires AppLovin MAX SDK 13.2.0 or higher.
+* Removed deprecated code paths based on the minimum supported AppLovin MAX SDK version 13.0.0.
+
+## 7.12.2.0
+* Certified with Yandex SDK 7.12.2.
+
+## 7.12.1.1
+* Remove null Activity check when loading interstitial and rewarded ads.
+
+## 7.12.1.0
+* Certified with Yandex SDK 7.12.1.
+
+## 7.12.0.0
+* Certified with Yandex SDK 7.12.0.
+
+## 7.11.0.0
+* Certified with Yandex SDK 7.11.0.
+
+## 7.10.2.0
+* Certified with Yandex SDK 7.10.2.
+
 ## 7.10.1.0
 * Certified with Yandex SDK 7.10.1.
 
@@ -63,7 +101,7 @@
 ## 7.0.1.0
 * Certified with Yandex SDK 7.0.1.
 * Remove deprecated callbacks `onRewardedAdVideoStarted()` and `onRewardedAdVideoCompleted()`.
-* Requires minimum Android API level be 21 or higher.
+* Updated minimum Android API level to 21 to match Yandex SDK.
 
 ## 6.4.1.0
 * Certified with Yandex SDK 6.4.1.

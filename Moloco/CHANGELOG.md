@@ -1,5 +1,36 @@
 # Changelog
 
+## 3.12.0.0
+* Certified with Moloco SDK 3.12.0.
+
+## 3.11.0.1
+* Updated error code mapping for SDK error reports.
+
+## 3.11.0.0
+* Certified with Moloco SDK 3.11.0.
+* Updated ad display failed error code.
+
+## 3.10.0.0
+* Certified with Moloco SDK 3.10.0.
+
+## 3.9.0.1
+* Removed requirement of the title asset for native banners and MRECs.
+
+## 3.9.0.0
+* Certified with Moloco SDK 3.9.0.
+
+## 3.8.0.0
+* Certified with Moloco SDK 3.8.0.
+
+## 3.7.2.0
+* Certified with Moloco SDK 3.7.2.
+
+## 3.7.1.0
+* Certified with Moloco SDK 3.7.1.
+
+## 3.7.0.0
+* Certified with Moloco SDK 3.7.0.
+
 ## 3.6.1.1
 * Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
 

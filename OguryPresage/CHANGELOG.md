@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.1.0.1
+* Updated to pass adapter version to the `OguryMediation` object.
+
+## 6.1.0.0
+* Certified with OguryPresage SDK 6.1.0.
+* Updated minimum Android API level to 21 to match OguryPresage SDK.
+* Updated ad display failed error code.
+
 ## 6.0.1.1
 * Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
 

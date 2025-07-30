@@ -1,5 +1,31 @@
 # Changelog
 
+## 4.8.0.0
+* Certified with PubMatic SDK 4.8.0.
+
+## 4.7.1.0
+* Certified with PubMatic SDK 4.7.1.
+
+## 4.7.0.0
+* Certified with PubMatic SDK 4.7.0.
+* Updated to use PubMatic's new `loadAd` API that includes MAX as the bidding host.
+* Updated ad display failed error code.
+
+## 4.6.0.0
+* Certified with PubMatic SDK 4.6.0.
+
+## 4.5.2.0
+* Certified with PubMatic SDK 4.5.2.
+
+## 4.5.1.0
+* Certified with PubMatic SDK 4.5.1.
+
+## 4.5.0.0
+* Certified with PubMatic SDK 4.5.0.
+
+## 4.4.0.1
+* Updated to support gpid (Global Placement ID).
+
 ## 4.4.0.0
 * Certified with PubMatic SDK 4.4.0.
 

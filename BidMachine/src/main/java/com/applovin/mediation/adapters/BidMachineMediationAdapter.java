@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import io.bidmachine.AdPlacementConfig;
 import io.bidmachine.AdsFormat;
 import io.bidmachine.BidMachine;
 import io.bidmachine.BidTokenCallback;
@@ -115,7 +116,7 @@ public class BidMachineMediationAdapter
     @Override
     public String getSdkVersion()
     {
-        return BidMachine.VERSION;
+        return getVersionString( BidMachine.class, "VERSION" );
     }
 
     @Override
@@ -164,8 +165,35 @@ public class BidMachineMediationAdapter
 
         updateSettings( parameters );
 
+        AdsFormat adsFormat = toAdsFormat( parameters );
+        if ( adsFormat == null )
+        {
+            String errorMessage = "invalid ad format - ad format is null";
+            log( "Signal collection failed with error: " + errorMessage );
+            callback.onSignalCollectionFailed( errorMessage );
+
+            return;
+        }
+
+        String adUnitId = parameters.getAdUnitId();
+        AdPlacementConfig.Builder adPlacementConfigBuilder = new AdPlacementConfig.Builder( adsFormat );
+        Bundle credentials = BundleUtils.getBundle( "placement_ids", Bundle.EMPTY, parameters.getServerParameters() );
+
+        if ( AppLovinSdkUtils.isValidString( adUnitId ) )
+        {
+            String slotId = credentials.getString( adUnitId );
+            if ( AppLovinSdkUtils.isValidString( slotId ) )
+            {
+                adPlacementConfigBuilder.withPlacementId( slotId );
+            }
+            else
+            {
+                log( "No valid slot ID found during signal collection" );
+            }
+        }
+
         // NOTE: Must be ran on bg thread
-        BidMachine.getBidToken( getApplicationContext(), toAdsFormat( parameters ), new BidTokenCallback()
+        BidMachine.getBidToken( getApplicationContext(), adPlacementConfigBuilder.build(), new BidTokenCallback()
         {
             @Override
             public void onCollected(@NonNull final String bidToken)
@@ -198,7 +226,9 @@ public class BidMachineMediationAdapter
         if ( interstitialAd.isExpired() )
         {
             log( "Unable to show interstitial - ad expired" );
-            listener.onInterstitialAdDisplayFailed( MaxAdapterError.AD_EXPIRED );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                         MaxAdapterError.AD_EXPIRED.getCode(),
+                                                                         MaxAdapterError.AD_EXPIRED.getMessage() ) );
 
             return;
         }
@@ -206,7 +236,9 @@ public class BidMachineMediationAdapter
         if ( !interstitialAd.canShow() )
         {
             log( "Unable to show interstitial - ad not ready" );
-            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                         MaxAdapterError.AD_NOT_READY.getCode(),
+                                                                         MaxAdapterError.AD_NOT_READY.getMessage() ) );
 
             return;
         }
@@ -236,7 +268,9 @@ public class BidMachineMediationAdapter
         if ( rewardedAd.isExpired() )
         {
             log( "Unable to show rewarded ad - ad expired" );
-            listener.onRewardedAdDisplayFailed( MaxAdapterError.AD_EXPIRED );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                     MaxAdapterError.AD_EXPIRED.getCode(),
+                                                                     MaxAdapterError.AD_EXPIRED.getMessage() ) );
 
             return;
         }
@@ -244,7 +278,9 @@ public class BidMachineMediationAdapter
         if ( !rewardedAd.canShow() )
         {
             log( "Unable to show rewarded ad - ad not ready" );
-            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                     MaxAdapterError.AD_NOT_READY.getCode(),
+                                                                     MaxAdapterError.AD_NOT_READY.getMessage() ) );
 
             return;
         }
@@ -440,7 +476,9 @@ public class BidMachineMediationAdapter
         @Override
         public void onAdShowFailed(@NonNull InterstitialAd interstitialAd, @NonNull BMError bmError)
         {
-            MaxAdapterError maxAdapterError = toMaxError( bmError );
+            MaxAdapterError maxAdapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                   bmError.getCode(),
+                                                                   bmError.getMessage() );
             log( "Interstitial ad failed to show with error (" + maxAdapterError + ")" );
             listener.onInterstitialAdDisplayFailed( maxAdapterError );
         }
@@ -513,7 +551,9 @@ public class BidMachineMediationAdapter
         @Override
         public void onAdShowFailed(@NonNull RewardedAd rewardedAd, @NonNull BMError bmError)
         {
-            MaxAdapterError maxAdapterError = toMaxError( bmError );
+            MaxAdapterError maxAdapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                   bmError.getCode(),
+                                                                   bmError.getMessage() );
             log( "Rewarded ad failed to show with error (" + maxAdapterError + ")" );
             listener.onRewardedAdDisplayFailed( maxAdapterError );
         }
@@ -606,7 +646,9 @@ public class BidMachineMediationAdapter
         @Override
         public void onAdShowFailed(@NonNull BannerView bannerView, @NonNull BMError bmError)
         {
-            MaxAdapterError maxAdapterError = toMaxError( bmError );
+            MaxAdapterError maxAdapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                   bmError.getCode(),
+                                                                   bmError.getMessage() );
             log( "AdView ad failed to show with error (" + maxAdapterError + ")" );
             listener.onAdViewAdDisplayFailed( maxAdapterError );
         }
@@ -647,7 +689,7 @@ public class BidMachineMediationAdapter
             if ( isTemplateAd && TextUtils.isEmpty( nativeAd.getTitle() ) )
             {
                 e( "Native ad (" + nativeAd + ") does not have required assets." );
-                listener.onNativeAdLoadFailed( new MaxAdapterError( -5400, "Missing Native Ad Assets" ) );
+                listener.onNativeAdLoadFailed( MaxAdapterError.MISSING_REQUIRED_NATIVE_AD_ASSETS );
                 return;
             }
 
@@ -756,7 +798,7 @@ public class BidMachineMediationAdapter
                             .setIcon( iconMaxNativeAdImage )
                             .setOptionsView( nativeAd.getProviderView( getApplicationContext() ) )
                             .setMediaView( mediaView );
-                    if ( AppLovinSdk.VERSION_CODE >= 11_04_03_99 && nativeAd.getMainImage() != null )
+                    if ( nativeAd.getMainImage() != null )
                     {
                         MaxNativeAd.MaxNativeAdImage mainImage = new MaxNativeAd.MaxNativeAdImage( nativeAd.getMainImage().getImage() );
                         builder.setMainImage( mainImage );

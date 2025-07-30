@@ -194,7 +194,7 @@ public class MobileFuseMediationAdapter
         if ( !interstitialAd.isLoaded() )
         {
             log( "Unable to show interstitial - ad not ready" );
-            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED, 0, "Interstitial ad not ready" ) );
 
             return;
         }
@@ -228,7 +228,7 @@ public class MobileFuseMediationAdapter
         if ( !rewardedAd.isLoaded() )
         {
             log( "Unable to show rewarded ad - ad not ready" );
-            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED, 0, "Rewarded ad not ready" ) );
 
             return;
         }
@@ -624,14 +624,6 @@ public class MobileFuseMediationAdapter
             }
 
             log( "Native " + adFormat.getLabel() + " ad loaded" );
-
-            if ( !nativeAd.hasTitle() )
-            {
-                e( "Native " + adFormat.getLabel() + " ad (" + nativeAd + ") does not have required assets." );
-                listener.onAdViewAdLoadFailed( MaxAdapterError.MISSING_REQUIRED_NATIVE_AD_ASSETS );
-
-                return;
-            }
 
             final MaxNativeAd.Builder builder = new MaxNativeAd.Builder()
                     .setAdFormat( adFormat )

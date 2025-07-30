@@ -70,6 +70,7 @@ import sg.bigo.ads.api.SplashAd;
 import sg.bigo.ads.api.SplashAdInteractionListener;
 import sg.bigo.ads.api.SplashAdLoader;
 import sg.bigo.ads.api.SplashAdRequest;
+import sg.bigo.ads.api.VideoController;
 
 import static sg.bigo.ads.api.AdError.ERROR_CODE_ACTIVITY_CREATE_ERROR;
 import static sg.bigo.ads.api.AdError.ERROR_CODE_AD_EXPIRED;
@@ -281,7 +282,9 @@ public class BigoAdsMediationAdapter
         if ( interstitialAd.isExpired() )
         {
             log( "Unable to show interstitial ad for slot id: " + slotId + " - ad expired" );
-            listener.onInterstitialAdDisplayFailed( MaxAdapterError.AD_EXPIRED );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                         MaxAdapterError.AD_EXPIRED.getCode(),
+                                                                         MaxAdapterError.AD_EXPIRED.getMessage() ) );
         }
         else
         {
@@ -334,7 +337,9 @@ public class BigoAdsMediationAdapter
         if ( appOpenAd.isExpired() )
         {
             log( "Unable to show app open ad for slot id: " + slotId + " - ad expired" );
-            listener.onAppOpenAdDisplayFailed( MaxAdapterError.AD_EXPIRED );
+            listener.onAppOpenAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                    MaxAdapterError.AD_EXPIRED.getCode(),
+                                                                    MaxAdapterError.AD_EXPIRED.getMessage() ) );
         }
         else
         {
@@ -382,7 +387,9 @@ public class BigoAdsMediationAdapter
         if ( rewardedAd.isExpired() )
         {
             log( "Unable to show rewarded ad for slot id: " + slotId + " - ad expired" );
-            listener.onRewardedAdDisplayFailed( MaxAdapterError.AD_EXPIRED );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                     MaxAdapterError.AD_EXPIRED.getCode(),
+                                                                     MaxAdapterError.AD_EXPIRED.getMessage() ) );
         }
         else
         {
@@ -501,6 +508,16 @@ public class BigoAdsMediationAdapter
         }
     }
 
+    private static void updateMuteState(final Bundle serverParameters, final MediaView mediaView)
+    {
+        VideoController videoController = mediaView.getVideoController();
+
+        if ( serverParameters.containsKey( "is_muted" ) && videoController != null )
+        {
+            videoController.mute( serverParameters.getBoolean( "is_muted" ) );
+        }
+    }
+
     private static MaxAdapterError toMaxError(final AdError error)
     {
         final int bigoAdsErrorCode = error.getCode();
@@ -609,7 +626,9 @@ public class BigoAdsMediationAdapter
         @Override
         public void onAdError(@NonNull final AdError error)
         {
-            final MaxAdapterError adapterError = toMaxError( error );
+            final MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                      error.getCode(),
+                                                                      error.getMessage() );
             log( "Interstitial ad (" + slotId + ") failed to show with error: " + adapterError );
             listener.onInterstitialAdDisplayFailed( adapterError );
         }
@@ -673,7 +692,9 @@ public class BigoAdsMediationAdapter
         @Override
         public void onAdError(@NonNull final AdError adError)
         {
-            final MaxAdapterError adapterError = toMaxError( adError );
+            MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                adError.getCode(),
+                                                                adError.getMessage() );
             log( "App open ad (" + slotId + ") failed to show with error: " + adapterError );
             listener.onAppOpenAdDisplayFailed( adapterError );
         }
@@ -753,7 +774,9 @@ public class BigoAdsMediationAdapter
         @Override
         public void onAdError(@NonNull final AdError error)
         {
-            final MaxAdapterError adapterError = toMaxError( error );
+            MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                error.getCode(),
+                                                                error.getMessage() );
             log( "Rewarded ad (" + slotId + ") failed to show with error: " + adapterError );
             listener.onRewardedAdDisplayFailed( adapterError );
         }
@@ -835,7 +858,9 @@ public class BigoAdsMediationAdapter
         @Override
         public void onAdError(@NonNull final AdError adError)
         {
-            final MaxAdapterError adapterError = toMaxError( adError );
+            final MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                      adError.getCode(),
+                                                                      adError.getMessage() );
             log( adFormat.getLabel() + " ad (" + slotId + ") failed to show with error: " + adapterError );
             listener.onAdViewAdDisplayFailed( adapterError );
         }
@@ -883,14 +908,6 @@ public class BigoAdsMediationAdapter
                 return;
             }
 
-            if ( TextUtils.isEmpty( ad.getTitle() ) )
-            {
-                log( "Native " + adFormat.getLabel() + " ad (" + ad + ") does not have required assets." );
-                listener.onAdViewAdLoadFailed( MaxAdapterError.MISSING_REQUIRED_NATIVE_AD_ASSETS );
-
-                return;
-            }
-
             ad.setAdInteractionListener( nativeAdViewListener );
             BigoAdsMediationAdapter.this.nativeAd = ad;
 
@@ -898,6 +915,7 @@ public class BigoAdsMediationAdapter
             final ImageView iconView = new ImageView( context );
             final AdOptionsView optionsView = new AdOptionsView( context );
             final MediaView mediaView = new MediaView( context );
+            updateMuteState( serverParameters, mediaView );
 
             final MaxNativeAd.Builder builder = new MaxNativeAd.Builder()
                     .setAdFormat( adFormat )
@@ -951,7 +969,9 @@ public class BigoAdsMediationAdapter
         @Override
         public void onAdError(@NonNull final AdError error)
         {
-            final MaxAdapterError adapterError = toMaxError( error );
+            final MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                      error.getCode(),
+                                                                      error.getMessage() );
             log( "Native " + adFormat.getLabel() + " ad (" + slotId + ") failed to show with error: " + adapterError );
             listener.onAdViewAdDisplayFailed( adapterError );
         }
@@ -1015,6 +1035,7 @@ public class BigoAdsMediationAdapter
             final ImageView iconView = new ImageView( context );
             final AdOptionsView optionsView = new AdOptionsView( context );
             final MediaView mediaView = new MediaView( context );
+            updateMuteState( serverParameters, mediaView );
 
             final MaxNativeAd.Builder builder = new MaxNativeAd.Builder()
                     .setAdFormat( MaxAdFormat.NATIVE )
@@ -1056,7 +1077,9 @@ public class BigoAdsMediationAdapter
         @Override
         public void onAdError(@NonNull final AdError error)
         {
-            final MaxAdapterError adapterError = toMaxError( error );
+            final MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                      error.getCode(),
+                                                                      error.getMessage() );
             log( "Native ad (" + slotId + ") failed to show with error: " + adapterError );
         }
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2025.7.18.0
+* Certified with Line SDK 2.9.20250718.
+* Updated ad display failed error code.
+
+## 2025.5.19.0
+* Certified with Line SDK 2.9.20250519.
+* Removed usage of deprecated `FiveAdVideoReward.getState()` API to determine whether a reward should be granted.
+
+## 2025.1.10.2
+* Add support for bidding.
+* Removed deprecated code paths based on the minimum supported AppLovin MAX SDK version 13.0.0.
+
 ## 2025.1.10.1
 * Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
 

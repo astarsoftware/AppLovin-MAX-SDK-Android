@@ -51,8 +51,9 @@ public class OguryPresageMediationAdapter
         extends MediationAdapterBase
         implements MaxSignalProvider, MaxInterstitialAdapter, MaxRewardedAdapter, MaxAdViewAdapter
 {
-    private static final AtomicBoolean        initialized = new AtomicBoolean();
+    private static final AtomicBoolean        initialized   = new AtomicBoolean();
     private static       InitializationStatus status;
+    private static final OguryMediation       mediationInfo = new OguryMediation( "AppLovin MAX", AppLovinSdk.VERSION, BuildConfig.VERSION_NAME );
 
     private OguryInterstitialAd interstitialAd;
     private OguryRewardedAd     rewardedAd;
@@ -155,7 +156,7 @@ public class OguryPresageMediationAdapter
         final String bidResponse = parameters.getBidResponse();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( bidResponse ) ? "bidding " : "" ) + "interstitial ad: " + placementId + "..." );
 
-        interstitialAd = new OguryInterstitialAd( getContext( activity ), placementId, new OguryMediation( "AppLovin MAX", AppLovinSdk.VERSION ) );
+        interstitialAd = new OguryInterstitialAd( getContext( activity ), placementId, mediationInfo );
 
         InterstitialAdListener adListener = new InterstitialAdListener( placementId, listener );
         interstitialAd.setListener( adListener );
@@ -187,7 +188,9 @@ public class OguryPresageMediationAdapter
         if ( !interstitialAd.isLoaded() )
         {
             log( "Interstitial ad not ready" );
-            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
+            listener.onInterstitialAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                         MaxAdapterError.AD_NOT_READY.getCode(),
+                                                                         MaxAdapterError.AD_NOT_READY.getMessage() ) );
 
             return;
         }
@@ -204,7 +207,7 @@ public class OguryPresageMediationAdapter
         final String bidResponse = parameters.getBidResponse();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( bidResponse ) ? "bidding " : "" ) + "rewarded ad: " + placementId + "..." );
 
-        rewardedAd = new OguryRewardedAd( getContext( activity ), placementId, new OguryMediation( "AppLovin MAX", AppLovinSdk.VERSION ) );
+        rewardedAd = new OguryRewardedAd( getContext( activity ), placementId, mediationInfo );
 
         RewardedAdListener adListener = new RewardedAdListener( placementId, listener );
         rewardedAd.setListener( adListener );
@@ -236,7 +239,9 @@ public class OguryPresageMediationAdapter
         if ( !rewardedAd.isLoaded() )
         {
             log( "Rewarded ad not ready" );
-            listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
+            listener.onRewardedAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                     MaxAdapterError.AD_NOT_READY.getCode(),
+                                                                     MaxAdapterError.AD_NOT_READY.getMessage() ) );
 
             return;
         }
@@ -256,7 +261,7 @@ public class OguryPresageMediationAdapter
         final String bidResponse = parameters.getBidResponse();
         log( "Loading " + ( AppLovinSdkUtils.isValidString( bidResponse ) ? "bidding " : "" ) + adFormat.getLabel() + " ad: " + placementId + "..." );
 
-        adView = new OguryBannerAdView( getContext( activity ), placementId, toAdSize( adFormat ), new OguryMediation( "AppLovin MAX", AppLovinSdk.VERSION ) );
+        adView = new OguryBannerAdView( getContext( activity ), placementId, toAdSize( adFormat ), mediationInfo );
 
         AdViewListener adListener = new AdViewListener( placementId, listener );
         adView.setListener( adListener );
@@ -380,8 +385,11 @@ public class OguryPresageMediationAdapter
         {
             if ( oguryError.getType() == OguryAdError.Type.SHOW_ERROR )
             {
+                MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                    oguryError.getCode(),
+                                                                    oguryError.getMessage() );
                 log( "Interstitial (" + placementId + ") failed to show with error: " + oguryError );
-                listener.onInterstitialAdDisplayFailed( toMaxError( oguryError ) );
+                listener.onInterstitialAdDisplayFailed( adapterError );
             }
             else
             {
@@ -451,8 +459,11 @@ public class OguryPresageMediationAdapter
         {
             if ( oguryError.getType() == OguryAdError.Type.SHOW_ERROR )
             {
+                MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                    oguryError.getCode(),
+                                                                    oguryError.getMessage() );
                 log( "Rewarded ad (" + placementId + ") failed to show with error: " + oguryError );
-                listener.onRewardedAdDisplayFailed( toMaxError( oguryError ) );
+                listener.onRewardedAdDisplayFailed( adapterError );
             }
             else
             {
@@ -506,8 +517,11 @@ public class OguryPresageMediationAdapter
         {
             if ( oguryError.getType() == OguryAdError.Type.SHOW_ERROR )
             {
+                MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                    oguryError.getCode(),
+                                                                    oguryError.getMessage() );
                 log( "AdView ad (" + placementId + ") failed to show with error: " + oguryError );
-                listener.onAdViewAdDisplayFailed( toMaxError( oguryError ) );
+                listener.onAdViewAdDisplayFailed( adapterError );
             }
             else
             {

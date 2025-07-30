@@ -1,5 +1,24 @@
 # Changelog
 
+## 5.4.0.0
+* Certified with BigoAds SDK 5.4.0.
+* Updated ad display failed error code.
+
+## 5.3.0.2
+* Removed requirement of the title asset for native banners and MRECs.
+
+## 5.3.0.1
+* Add support for respecting mute state for native ads.
+
+## 5.3.0.0
+* Certified with BigoAds SDK 5.3.0.
+
+## 5.2.1.0
+* Certified with BigoAds SDK 5.2.1.
+
+## 5.2.0.0
+* Certified with BigoAds SDK 5.2.0.
+
 ## 5.1.0.1
 * Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
 

@@ -1,5 +1,33 @@
 # Changelog
 
+## 24.5.0.0
+* Certified with Google SDK 24.5.0.
+
+## 24.4.0.0
+* Certified with Google SDK 24.4.0.
+* Updated ad display failed error code.
+
+## 24.3.0.1
+* Removed requirement of the title asset for native banners and MRECs.
+
+## 24.3.0.0
+* Certified with Google SDK 24.3.0.
+
+## 24.2.0.1
+* Fixed the request parameters for inline adaptive banners.
+
+## 24.2.0.0
+* Certified with Google SDK 24.2.0.
+* Removed deprecated code paths based on the minimum supported AppLovin MAX SDK version 13.0.0.
+
+## 24.1.0.0
+* Certified with Google SDK 24.1.0.
+
+## 24.0.0.0
+* Certified with Google SDK 24.0.0.
+* Updated minimum Android API level to 23 to match Google SDK.
+* Remove support for the interstitial option of app open ads.
+
 ## 23.6.0.3
 * Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
 
@@ -46,8 +74,8 @@
 * Remove deprecated callbacks `onRewardedAdVideoStarted()`, `onRewardedAdVideoCompleted()`, `onRewardedInterstitialAdVideoStarted()` and `onRewardedInterstitialAdVideoCompleted`.
 
 ## 23.0.0.0
-* Certified with Google SDK 23.0.0
-* Now requires minimum Android API level be 21 or higher.
+* Certified with Google SDK 23.0.0.
+* Updated minimum Android API level to 21 to match Google SDK.
 
 ## 22.6.0.1
 * Use `apply()` when saving to `SharedPreferences` to prevent ANRs.

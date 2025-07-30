@@ -1,5 +1,53 @@
 # Changelog
 
+## 7.3.0.4.0
+* Certified with ByteDance SDK 7.3.0.4.
+
+## 7.3.0.3.0
+* Certified with ByteDance SDK 7.3.0.3.
+
+## 7.2.0.6.0
+* Certified with ByteDance SDK 7.2.0.6.
+
+## 7.2.0.5.0
+* Certified with ByteDance SDK 7.2.0.5.
+
+## 7.2.0.4.0
+* Certified with ByteDance SDK 7.2.0.4.
+
+## 7.2.0.3.0
+* Certified with ByteDance SDK 7.2.0.3.
+
+## 7.1.0.8.0
+* Certified with ByteDance SDK 7.1.0.8.
+
+## 7.1.0.7.0
+* Certified with ByteDance SDK 7.1.0.7.
+
+## 7.1.0.6.0
+* Certified with ByteDance SDK 7.1.0.6.
+
+## 7.1.0.4.0
+* Certified with ByteDance SDK 7.1.0.4.
+* Add support for [adaptive banners](https://developers.applovin.com/en/max/android/ad-formats/banner-and-mrec-ads#adaptive-banners) & inline adaptive ads in both [banners](https://developers.applovin.com/en/max/android/ad-formats/banner-and-mrec-ads#inline-adaptive-banners) and [MRECs](https://developers.applovin.com/en/max/android/ad-formats/banner-and-mrec-ads/#inline-adaptive-mrecs).
+
+## 6.5.0.8.1
+* Requires minimum AppLovin MAX SDK version be 13.2.0.
+
+## 6.5.0.8.0
+* Certified with ByteDance SDK 6.5.0.8.
+* Removed deprecated code paths based on the minimum supported AppLovin MAX SDK version 13.2.0.
+* Updated minimum Android API level to 19 to match ByteDance SDK.
+
+## 6.5.0.6.0
+* Certified with ByteDance SDK 6.5.0.6.
+
+## 6.5.0.5.0
+* Certified with ByteDance SDK 6.5.0.5.
+
+## 6.5.0.4.0
+* Certified with ByteDance SDK 6.5.0.4.
+
 ## 6.5.0.3.0
 * Certified with ByteDance SDK 6.5.0.3.
 

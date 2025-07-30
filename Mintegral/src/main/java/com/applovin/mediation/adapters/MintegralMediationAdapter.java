@@ -37,12 +37,12 @@ import com.applovin.sdk.AppLovinSdkUtils;
 import com.mbridge.msdk.MBridgeConstans;
 import com.mbridge.msdk.MBridgeSDK;
 import com.mbridge.msdk.foundation.same.net.Aa;
-import com.mbridge.msdk.newinterstitial.out.MBBidNewInterstitialHandler;
-import com.mbridge.msdk.newinterstitial.out.MBNewInterstitialHandler;
-import com.mbridge.msdk.newinterstitial.out.NewInterstitialListener;
 import com.mbridge.msdk.mbbid.out.BidConstants;
 import com.mbridge.msdk.mbbid.out.BidManager;
 import com.mbridge.msdk.nativex.view.MBMediaView;
+import com.mbridge.msdk.newinterstitial.out.MBBidNewInterstitialHandler;
+import com.mbridge.msdk.newinterstitial.out.MBNewInterstitialHandler;
+import com.mbridge.msdk.newinterstitial.out.NewInterstitialListener;
 import com.mbridge.msdk.out.BannerAdListener;
 import com.mbridge.msdk.out.BannerSize;
 import com.mbridge.msdk.out.Campaign;
@@ -65,7 +65,6 @@ import com.mbridge.msdk.out.SDKInitStatusListener;
 import com.mbridge.msdk.widget.MBAdChoice;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -211,7 +210,7 @@ public class MintegralMediationAdapter
                     status = InitializationStatus.INITIALIZED_FAILURE;
                     onCompletionListener.onCompletion( status, errorMessage );
                 }
-            });
+            } );
         }
         else
         {
@@ -246,11 +245,7 @@ public class MintegralMediationAdapter
             mbInterstitialVideoHandler = null;
         }
 
-        if ( mbBidInterstitialVideoHandler != null )
-        {
-            mbBidInterstitialVideoHandler.setInterstitialVideoListener( null );
-            mbBidInterstitialVideoHandler = null;
-        }
+        mbBidInterstitialVideoHandler = null;
 
         if ( mbSplashHandler != null )
         {
@@ -266,11 +261,7 @@ public class MintegralMediationAdapter
             mbRewardVideoHandler = null;
         }
 
-        if ( mbBidRewardVideoHandler != null )
-        {
-            mbBidRewardVideoHandler.setRewardVideoListener( null );
-            mbBidRewardVideoHandler = null;
-        }
+        mbBidRewardVideoHandler = null;
 
         if ( mbBannerView != null )
         {
@@ -340,9 +331,8 @@ public class MintegralMediationAdapter
     @Override
     public void loadInterstitialAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxInterstitialAdapterListener listener)
     {
-        // Overwritten by `mute_state` setting, unless `mute_state` is disabled
-        final boolean shouldUpdateMuteState = parameters.getServerParameters().containsKey( "is_muted" ); // Introduced in 9.10.0
-        final int muteState = parameters.getServerParameters().getBoolean( "is_muted" ) ? MBridgeConstans.REWARD_VIDEO_PLAY_MUTE : MBridgeConstans.INTER_ACTIVE_VIDEO_PLAY_NOT_MUTE;
+        final boolean isMuted = shouldUpdateMuteState( parameters.getServerParameters() );
+        final int muteState = isMuted ? MBridgeConstans.INTER_ACTIVE_VIDEO_PLAY_MUTE : MBridgeConstans.INTER_ACTIVE_VIDEO_PLAY_NOT_MUTE;
 
         mbUnitId = parameters.getThirdPartyAdPlacementId();
         final String placementId = BundleUtils.getString( "placement_id", parameters.getServerParameters() );
@@ -364,10 +354,7 @@ public class MintegralMediationAdapter
             }
 
             mbBidInterstitialVideoHandler.setInterstitialVideoListener( router.getInterstitialListener() );
-
-            // Update mute state if configured by backend
-            if ( shouldUpdateMuteState ) mbBidInterstitialVideoHandler.playVideoMute( muteState );
-
+            if ( isMuted ) mbBidInterstitialVideoHandler.playVideoMute( muteState );
             mbBidInterstitialVideoHandler.loadFromBid( parameters.getBidResponse() );
         }
         else
@@ -404,9 +391,7 @@ public class MintegralMediationAdapter
             }
             else
             {
-                // Update mute state if configured by backend
-                if ( shouldUpdateMuteState ) mbInterstitialVideoHandler.playVideoMute( muteState );
-
+                if ( isMuted ) mbInterstitialVideoHandler.playVideoMute( muteState );
                 mbInterstitialVideoHandler.load();
             }
         }
@@ -432,7 +417,9 @@ public class MintegralMediationAdapter
             log( "Unable to show interstitial - no ad loaded..." );
 
             // Ad load failed
-            router.onAdDisplayFailed( mbUnitId, new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
+            router.onAdDisplayFailed( mbUnitId, new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                     MaxAdapterError.AD_NOT_READY.getCode(),
+                                                                     MaxAdapterError.AD_NOT_READY.getMessage() ) );
         }
     }
 
@@ -468,7 +455,9 @@ public class MintegralMediationAdapter
         if ( mbSplashHandler == null || !mbSplashHandler.isReady( bidResponse ) )
         {
             log( "Unable to show app open ad - no ad loaded..." );
-            listener.onAppOpenAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED, 0, "App open ad not ready" ) );
+            listener.onAppOpenAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                    MaxAdapterError.AD_NOT_READY.getCode(),
+                                                                    MaxAdapterError.AD_NOT_READY.getMessage() ) );
 
             return;
         }
@@ -494,9 +483,8 @@ public class MintegralMediationAdapter
     @Override
     public void loadRewardedAd(final MaxAdapterResponseParameters parameters, @Nullable final Activity activity, final MaxRewardedAdapterListener listener)
     {
-        // Overwritten by `mute_state` setting, unless `mute_state` is disabled
-        final boolean shouldUpdateMuteState = parameters.getServerParameters().containsKey( "is_muted" ); // Introduced in 9.10.0
-        final int muteState = parameters.getServerParameters().getBoolean( "is_muted" ) ? MBridgeConstans.REWARD_VIDEO_PLAY_MUTE : MBridgeConstans.INTER_ACTIVE_VIDEO_PLAY_NOT_MUTE;
+        final boolean isMuted = shouldUpdateMuteState( parameters.getServerParameters() );
+        final int muteState = isMuted ? MBridgeConstans.REWARD_VIDEO_PLAY_MUTE : MBridgeConstans.REWARD_VIDEO_PLAY_NOT_MUTE;
 
         mbUnitId = parameters.getThirdPartyAdPlacementId();
         final String placementId = BundleUtils.getString( "placement_id", parameters.getServerParameters() );
@@ -518,10 +506,7 @@ public class MintegralMediationAdapter
             }
 
             mbBidRewardVideoHandler.setRewardVideoListener( router.getRewardedListener() );
-
-            // Update mute state if configured by backend
-            if ( shouldUpdateMuteState ) mbBidRewardVideoHandler.playVideoMute( muteState );
-
+            if ( isMuted ) mbBidRewardVideoHandler.playVideoMute( muteState );
             mbBidRewardVideoHandler.loadFromBid( parameters.getBidResponse() );
         }
         else
@@ -558,9 +543,7 @@ public class MintegralMediationAdapter
             }
             else
             {
-                // Update mute state if configured by backend
-                if ( shouldUpdateMuteState ) mbRewardVideoHandler.playVideoMute( muteState );
-
+                if ( isMuted ) mbRewardVideoHandler.playVideoMute( muteState );
                 mbRewardVideoHandler.load();
             }
         }
@@ -593,7 +576,9 @@ public class MintegralMediationAdapter
             log( "Unable to show rewarded ad - no ad loaded..." );
 
             // Ad load failed
-            router.onAdDisplayFailed( mbUnitId, new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
+            router.onAdDisplayFailed( mbUnitId, new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                     MaxAdapterError.AD_NOT_READY.getCode(),
+                                                                     MaxAdapterError.AD_NOT_READY.getMessage() ) );
         }
     }
 
@@ -773,6 +758,12 @@ public class MintegralMediationAdapter
         return "-1";
     }
 
+    private boolean shouldUpdateMuteState(final Bundle serverParameters)
+    {
+        return serverParameters.containsKey( "is_muted" )
+                && serverParameters.getBoolean( "is_muted" );
+    }
+
     private static MaxAdapterError toMaxError(final String mintegralError)
     {
         // Note: we are using `contains()` in some cases b/c Mintegral prepends the message with `data load failed, errorMsg is `...
@@ -809,7 +800,7 @@ public class MintegralMediationAdapter
             adapterError = MaxAdapterError.UNSPECIFIED;
         }
 
-        return new MaxAdapterError( adapterError.getErrorCode(), adapterError.getErrorMessage(), 0, mintegralError );
+        return new MaxAdapterError( adapterError, 0, mintegralError );
     }
 
     private Context getContext(@Nullable final Activity activity)
@@ -837,21 +828,7 @@ public class MintegralMediationAdapter
 
     private List<View> getClickableViews(final MaxNativeAdView maxNativeAdView)
     {
-        if ( AppLovinSdk.VERSION_CODE < 11_05_03_00 )
-        {
-            final List<View> clickableViews = new ArrayList<>( 5 );
-            if ( maxNativeAdView.getTitleTextView() != null ) clickableViews.add( maxNativeAdView.getTitleTextView() );
-            if ( maxNativeAdView.getAdvertiserTextView() != null ) clickableViews.add( maxNativeAdView.getAdvertiserTextView() );
-            if ( maxNativeAdView.getBodyTextView() != null ) clickableViews.add( maxNativeAdView.getBodyTextView() );
-            if ( maxNativeAdView.getCallToActionButton() != null ) clickableViews.add( maxNativeAdView.getCallToActionButton() );
-            if ( maxNativeAdView.getIconImageView() != null ) clickableViews.add( maxNativeAdView.getIconImageView() );
-
-            return clickableViews;
-        }
-        else
-        {
-            return maxNativeAdView.getClickableViews();
-        }
+        return maxNativeAdView.getClickableViews();
     }
 
     /**
@@ -934,7 +911,9 @@ public class MintegralMediationAdapter
             @Override
             public void onShowFail(final MBridgeIds mBridgeIds, String errorMsg)
             {
-                MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", 0, errorMsg );
+                MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                    0,
+                                                                    errorMsg );
                 log( "Interstitial failed to show: " + adapterError );
                 onAdDisplayFailed( mBridgeIds.getUnitId(), adapterError );
             }
@@ -1035,7 +1014,9 @@ public class MintegralMediationAdapter
             @Override
             public void onShowFail(final MBridgeIds mBridgeIds, String errorMsg)
             {
-                MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", 0, errorMsg );
+                MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                    0,
+                                                                    errorMsg );
                 log( "Rewarded ad failed to show: " + adapterError );
                 onAdDisplayFailed( mBridgeIds.getUnitId(), adapterError );
             }
@@ -1148,7 +1129,9 @@ public class MintegralMediationAdapter
         @Override
         public void onShowFailed(final MBridgeIds mBridgeIds, final String errorMsg)
         {
-            final MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", 0, errorMsg );
+            final MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                      0,
+                                                                      errorMsg );
             log( "App open ad failed to show: " + adapterError );
             listener.onAppOpenAdDisplayFailed( adapterError );
         }
@@ -1226,7 +1209,7 @@ public class MintegralMediationAdapter
             if ( TextUtils.isEmpty( campaign.getAppName() ) )
             {
                 log( "Native " + adFormat.getLabel() + " ad failed to load for unit id: " + unitId + " placement id: " + placementId + " with error: missing required assets" );
-                listener.onAdViewAdLoadFailed( new MaxAdapterError( -5400, "Missing Native Ad Assets" ) );
+                listener.onAdViewAdLoadFailed( MaxAdapterError.MISSING_REQUIRED_NATIVE_AD_ASSETS );
 
                 return;
             }
@@ -1413,7 +1396,7 @@ public class MintegralMediationAdapter
             if ( isTemplateAd && TextUtils.isEmpty( campaign.getAppName() ) )
             {
                 log( "Native ad failed to load for unit id: " + unitId + " placement id: " + placementId + " with error: missing required assets" );
-                listener.onNativeAdLoadFailed( new MaxAdapterError( -5400, "Missing Native Ad Assets" ) );
+                listener.onNativeAdLoadFailed( MaxAdapterError.MISSING_REQUIRED_NATIVE_AD_ASSETS );
 
                 return;
             }
@@ -1554,17 +1537,9 @@ public class MintegralMediationAdapter
                                     .setCallToAction( campaign.getAdCall() )
                                     .setIcon( finalIconImage )
                                     .setOptionsView( adChoiceView )
-                                    .setMediaView( mediaView );
-                            if ( AppLovinSdk.VERSION_CODE >= 11_04_03_99 )
-                            {
-                                builder.setMainImage( mainImage );
-                            }
-
-                            if ( AppLovinSdk.VERSION_CODE >= 11_07_00_00 )
-                            {
-                                // Only Android supports star rating for now
-                                builder.setStarRating( campaign.getRating() );
-                            }
+                                    .setMediaView( mediaView )
+                                    .setMainImage( mainImage )
+                                    .setStarRating( campaign.getRating() );
 
                             nativeAd = new MaxMintegralNativeAd( builder );
                             listener.onNativeAdLoaded( nativeAd, null );

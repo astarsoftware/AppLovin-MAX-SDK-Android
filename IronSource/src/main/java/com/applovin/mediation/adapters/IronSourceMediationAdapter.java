@@ -29,8 +29,6 @@ import com.ironsource.mediationsdk.demandOnly.ISDemandOnlyBannerListener;
 import com.ironsource.mediationsdk.demandOnly.ISDemandOnlyInterstitialListener;
 import com.ironsource.mediationsdk.demandOnly.ISDemandOnlyRewardedVideoListener;
 import com.ironsource.mediationsdk.logger.IronSourceError;
-import com.ironsource.mediationsdk.utils.IronSourceConstants;
-import com.ironsource.mediationsdk.utils.IronSourceUtils;
 import com.unity3d.ironsourceads.AdSize;
 import com.unity3d.ironsourceads.InitListener;
 import com.unity3d.ironsourceads.InitRequest;
@@ -64,10 +62,10 @@ public class IronSourceMediationAdapter
         extends MediationAdapterBase
         implements MaxSignalProvider, MaxInterstitialAdapter, MaxRewardedAdapter, MaxAdViewAdapter
 {
-    private static final IronSourceRouter       ROUTER                           = new IronSourceRouter();
-    private static final AtomicBoolean          INITIALIZED                      = new AtomicBoolean();
-    private static final List<String>           loadedAdViewPlacementIdentifiers = Collections.synchronizedList( new ArrayList<>() );
-    private static       InitializationStatus   status;
+    private static final IronSourceRouter     ROUTER                           = new IronSourceRouter();
+    private static final AtomicBoolean        INITIALIZED                      = new AtomicBoolean();
+    private static final List<String>         loadedAdViewPlacementIdentifiers = Collections.synchronizedList( new ArrayList<>() );
+    private static       InitializationStatus status;
 
     private String                   mRouterPlacementIdentifier;
     @Nullable
@@ -103,10 +101,10 @@ public class IronSourceMediationAdapter
             if ( isDoNotSell != null )
             {
                 // NOTE: `setMetaData` must be called _before_ initializing their SDK
-                IronSource.setMetaData( "do_not_sell", Boolean.toString( isDoNotSell ) );
+                IronSourceAds.setMetaData( "do_not_sell", Boolean.toString( isDoNotSell ) );
             }
 
-            IronSource.setAdaptersDebug( parameters.isTesting() );
+            IronSourceAds.enableDebugMode( parameters.isTesting() );
             IronSource.setISDemandOnlyInterstitialListener( ROUTER );
             IronSource.setISDemandOnlyRewardedVideoListener( ROUTER );
 
@@ -140,7 +138,7 @@ public class IronSourceMediationAdapter
     @Override
     public String getSdkVersion()
     {
-        return IronSourceUtils.getSDKVersion();
+        return IronSourceAds.getSdkVersion();
     }
 
     @Override
@@ -254,7 +252,9 @@ public class IronSourceMediationAdapter
             if ( biddingInterstitialAd == null || !biddingInterstitialAd.isReadyToShow() )
             {
                 log( "Unable to show ironSource interstitial - ad is not ready for instance ID: " + instanceId );
-                listener.onInterstitialAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
+                listener.onInterstitialAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                             MaxAdapterError.AD_NOT_READY.getCode(),
+                                                                             MaxAdapterError.AD_NOT_READY.getMessage() ) );
                 return;
             }
 
@@ -275,7 +275,9 @@ public class IronSourceMediationAdapter
             if ( !IronSource.isISDemandOnlyInterstitialReady( instanceId ) )
             {
                 log( "Unable to show ironSource interstitial - no ad loaded for instance ID: " + instanceId );
-                ROUTER.onAdDisplayFailed( IronSourceRouter.getInterstitialRouterIdentifier( instanceId ), new MaxAdapterError( -4205, "Ad Display Failed", 0, "Interstitial ad not ready" ) );
+                ROUTER.onAdDisplayFailed( IronSourceRouter.getInterstitialRouterIdentifier( instanceId ), new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                                                                               MaxAdapterError.AD_NOT_READY.getCode(),
+                                                                                                                               MaxAdapterError.AD_NOT_READY.getMessage() ) );
                 return;
             }
 
@@ -337,7 +339,9 @@ public class IronSourceMediationAdapter
             if ( biddingRewardedAd == null || !biddingRewardedAd.isReadyToShow() )
             {
                 log( "Unable to show ironSource rewarded - ad is not ready for instance ID: " + instanceId );
-                listener.onRewardedAdDisplayFailed( new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
+                listener.onRewardedAdDisplayFailed( new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                         MaxAdapterError.AD_NOT_READY.getCode(),
+                                                                         MaxAdapterError.AD_NOT_READY.getMessage() ) );
                 return;
             }
 
@@ -361,7 +365,9 @@ public class IronSourceMediationAdapter
             if ( !IronSource.isISDemandOnlyRewardedVideoAvailable( instanceId ) )
             {
                 log( "Unable to show ironSource rewarded - no ad loaded..." );
-                ROUTER.onAdDisplayFailed( IronSourceRouter.getRewardedVideoRouterIdentifier( instanceId ), new MaxAdapterError( -4205, "Ad Display Failed", 0, "Rewarded ad not ready" ) );
+                ROUTER.onAdDisplayFailed( IronSourceRouter.getRewardedVideoRouterIdentifier( instanceId ), new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                                                                                MaxAdapterError.AD_NOT_READY.getCode(),
+                                                                                                                                MaxAdapterError.AD_NOT_READY.getMessage() ) );
                 return;
             }
 
@@ -430,7 +436,7 @@ public class IronSourceMediationAdapter
         Boolean hasUserConsent = parameters.hasUserConsent();
         if ( hasUserConsent != null )
         {
-            IronSource.setConsent( hasUserConsent );
+            IronSourceAds.setConsent( hasUserConsent );
         }
     }
 
@@ -584,7 +590,6 @@ public class IronSourceMediationAdapter
             case IronSourceError.ERROR_RV_LOAD_NO_FILL:
             case IronSourceError.ERROR_IS_LOAD_NO_FILL:
             case IronSourceError.ERROR_BN_INSTANCE_LOAD_AUCTION_FAILED:
-            case IronSourceConstants.BN_INSTANCE_LOAD_NO_FILL:
                 adapterError = MaxAdapterError.NO_FILL;
                 break;
             case IronSourceError.ERROR_CODE_GENERIC:
@@ -630,7 +635,7 @@ public class IronSourceMediationAdapter
                 break;
         }
 
-        return new MaxAdapterError( adapterError.getErrorCode(), adapterError.getErrorMessage(), ironSourceErrorCode, ironSourceError.getErrorMessage() );
+        return new MaxAdapterError( adapterError, ironSourceErrorCode, ironSourceError.getErrorMessage() );
     }
 
     private long getAdapterVersionCode()
@@ -691,7 +696,9 @@ public class IronSourceMediationAdapter
         @Override
         public void onInterstitialAdShowFailed(final String instanceId, final IronSourceError ironSourceError)
         {
-            MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", ironSourceError.getErrorCode(), ironSourceError.getErrorMessage() );
+            MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                ironSourceError.getErrorCode(),
+                                                                ironSourceError.getErrorMessage() );
             log( "Interstitial ad failed to show for instance ID: " + instanceId + " with error: " + adapterError );
             onAdDisplayFailed( IronSourceRouter.getInterstitialRouterIdentifier( instanceId ), adapterError );
         }
@@ -736,7 +743,9 @@ public class IronSourceMediationAdapter
         @Override
         public void onRewardedVideoAdShowFailed(final String instanceId, final IronSourceError ironSourceError)
         {
-            MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", ironSourceError.getErrorCode(), ironSourceError.getErrorMessage() );
+            MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                ironSourceError.getErrorCode(),
+                                                                ironSourceError.getErrorMessage() );
             log( "Rewarded ad failed to show for instance ID: " + instanceId + " with error: " + adapterError );
             onAdDisplayFailed( IronSourceRouter.getRewardedVideoRouterIdentifier( instanceId ), adapterError );
         }
@@ -774,12 +783,12 @@ public class IronSourceMediationAdapter
 
         private static String getInterstitialRouterIdentifier(final String instanceId)
         {
-            return instanceId + "-" + IronSource.AD_UNIT.INTERSTITIAL;
+            return instanceId + '-' + IronSource.AD_UNIT.INTERSTITIAL;
         }
 
         private static String getRewardedVideoRouterIdentifier(final String instanceId)
         {
-            return instanceId + "-" + IronSource.AD_UNIT.REWARDED_VIDEO;
+            return instanceId + '-' + IronSource.AD_UNIT.REWARDED_VIDEO;
         }
     }
 
@@ -876,7 +885,9 @@ public class IronSourceMediationAdapter
         @Override
         public void onInterstitialAdFailedToShow(@NonNull final InterstitialAd ad, @NonNull final IronSourceError ironSourceError)
         {
-            MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", ironSourceError.getErrorCode(), ironSourceError.getErrorMessage() );
+            MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                ironSourceError.getErrorCode(),
+                                                                ironSourceError.getErrorMessage() );
             log( "Interstitial ad failed to show for bidding instance ID: " + ad.getAdInfo().getInstanceId() + " with error: " + adapterError );
             listener.onInterstitialAdDisplayFailed( adapterError, createExtraInfo( ad ) );
         }
@@ -953,7 +964,9 @@ public class IronSourceMediationAdapter
         @Override
         public void onRewardedAdFailedToShow(@NonNull final RewardedAd ad, @NonNull final IronSourceError ironSourceError)
         {
-            MaxAdapterError adapterError = new MaxAdapterError( -4205, "Ad Display Failed", ironSourceError.getErrorCode(), ironSourceError.getErrorMessage() );
+            MaxAdapterError adapterError = new MaxAdapterError( MaxAdapterError.AD_DISPLAY_FAILED,
+                                                                ironSourceError.getErrorCode(),
+                                                                ironSourceError.getErrorMessage() );
             log( "Rewarded ad failed to show for bidding instance ID: " + ad.getAdInfo().getInstanceId() + " with error: " + adapterError );
             listener.onRewardedAdDisplayFailed( adapterError, createExtraInfo( ad ) );
         }

@@ -1,5 +1,22 @@
 # Changelog
 
+## 11.0.1.1
+* Update ProGuard rules to preserve `com.amazon.aps.**` classes to fix error from Amazon SDK: `java.lang.ClassNotFoundException: com.amazon.aps.ads.model.ApsAdNetwork`.
+
+## 11.0.1.0
+* Certified with AmazonAdMarketplace SDK 11.0.1.
+* Updated ad display failed error code.
+
+## 11.0.0.0
+* Certified with AmazonAdMarketplace SDK 11.0.0.
+
+## 10.1.1.0
+* Certified with AmazonAdMarketplace SDK 10.1.1.
+* Removed deprecated code paths based on the minimum supported AppLovin MAX SDK version 11.7.0+.
+
+## 10.1.0.0
+* Certified with AmazonAdMarketplace SDK 10.1.0.
+
 ## 10.0.0.1
 * Introduced `verification.properties` to facilitate adapter ownership verification with Google SDK console.
 
