@@ -1,5 +1,14 @@
 # Changelog
 
+## 2025.10.28.0
+* Certified with Line SDK 2.9.20251028.
+
+## 2025.9.24.0
+* Certified with Line SDK 2.9.20250924.
+
+## 2025.7.18.1
+* Removed usage of deprecated `needGdprNonPersonalizedAdsTreatment` property.
+
 ## 2025.7.18.0
 * Certified with Line SDK 2.9.20250718.
 * Updated ad display failed error code.

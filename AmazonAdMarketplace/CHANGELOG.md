@@ -1,5 +1,20 @@
 # Changelog
 
+## 11.1.1.0
+* Certified with AmazonAdMarketplace SDK 11.1.1.
+
+## 11.1.0.1
+* Fixed crashes caused by concurrent modification to `usedAdLoaders` by making it a synchronized `HashSet`.
+
+## 11.1.0.0
+* Certified with AmazonAdMarketplace SDK 11.1.0.
+
+## 11.0.4.0
+* Certified with AmazonAdMarketplace SDK 11.0.4.
+
+## 11.0.2.0
+* Certified with AmazonAdMarketplace SDK 11.0.2.
+
 ## 11.0.1.1
 * Update ProGuard rules to preserve `com.amazon.aps.**` classes to fix error from Amazon SDK: `java.lang.ClassNotFoundException: com.amazon.aps.ads.model.ApsAdNetwork`.
 

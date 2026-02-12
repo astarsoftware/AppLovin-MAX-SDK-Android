@@ -1,5 +1,29 @@
 # Changelog
 
+## 5.7.0.0
+* Certified with BigoAds SDK 5.7.0.
+
+## 5.6.2.0
+* Certified with BigoAds SDK 5.6.2.
+
+## 5.6.1.0
+* Certified with BigoAds SDK 5.6.1.
+
+## 5.5.2.0
+* Certified with BigoAds SDK 5.5.2.
+
+## 5.5.1.2
+* Added null checks to prevent `setTag()` calls on null views in BigoAds native.
+
+## 5.5.1.1
+* Fixed native ad view clickability issues where only media view and advertiser view were clickable.
+
+## 5.5.1.0
+* Certified with BigoAds SDK 5.5.1.
+
+## 5.5.0.0
+* Certified with BigoAds SDK 5.5.0.
+
 ## 5.4.0.0
 * Certified with BigoAds SDK 5.4.0.
 * Updated ad display failed error code.

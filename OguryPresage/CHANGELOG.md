@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.2.1.0
+* Certified with OguryPresage SDK 6.2.1.
+
+## 6.2.0.0
+* Certified with OguryPresage SDK 6.2.0.
+
 ## 6.1.0.1
 * Updated to pass adapter version to the `OguryMediation` object.
 
