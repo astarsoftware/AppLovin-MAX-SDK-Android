@@ -1,14 +1,9 @@
 package com.applovin.mediation.adapters;
 
-import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThreadDelayed;
-
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
 import android.text.TextUtils;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import com.amazon.aps.ads.Aps;
 import com.amazon.aps.ads.ApsAd;
@@ -46,10 +41,9 @@ import com.applovin.mediation.adapter.listeners.MaxSignalCollectionListener;
 import com.applovin.mediation.adapter.parameters.MaxAdapterInitializationParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterResponseParameters;
 import com.applovin.mediation.adapter.parameters.MaxAdapterSignalCollectionParameters;
+import com.applovin.mediation.adapters.amazonadmarketplace.BuildConfig;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkUtils;
-import com.astarsoftware.android.ads.AdNetworkTracker;
-import com.astarsoftware.dependencies.DependencyInjector;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -59,6 +53,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import static com.applovin.sdk.AppLovinSdkUtils.runOnUiThreadDelayed;
 
 /**
  * Created by Thomas So on December 9 2021
@@ -87,11 +86,6 @@ public class AmazonAdMarketplaceMediationAdapter
     private ApsAdController interstitialAdController;
     private ApsAdController rewardedAdController;
 
-	// astar
-    private MediationHints bannerHints = null;
-    private MediationHints interstitialHints = null;
-
-    // Explicit default constructor declaration
     public AmazonAdMarketplaceMediationAdapter(final AppLovinSdk sdk) { super( sdk ); }
 
     @Override
@@ -116,7 +110,7 @@ public class AmazonAdMarketplaceMediationAdapter
     @Override
     public String getAdapterVersion()
     {
-       return "11.0.1.1";
+        return BuildConfig.VERSION_NAME;
     }
 
     @Override
@@ -379,7 +373,6 @@ public class AmazonAdMarketplaceMediationAdapter
         }
         else
         {
-			this.bannerHints = null;
             failSignalCollection( "Received empty bid id", callback );
         }
     }
@@ -423,23 +416,17 @@ public class AmazonAdMarketplaceMediationAdapter
             if ( mediationHints.dtbAdResponse instanceof ApsAd )
             {
                 adViewController.fetchAd( (ApsAd) mediationHints.dtbAdResponse );
-;
             }
             else // DTBAdResponse
             {
                 DTBAdSize dtbAdSize = ( mediationHints.dtbAdResponse ).getDTBAds().get( 0 );
                 adViewController.fetchBannerAd( SDKUtilities.getBidInfo( mediationHints.dtbAdResponse ), dtbAdSize.getWidth(), dtbAdSize.getHeight() );
             }
-
-			// astar
-			this.bannerHints = mediationHints;
         }
         else
         {
             e( "Unable to find mediation hints" );
             listener.onAdViewAdLoadFailed( MaxAdapterError.INVALID_LOAD_STATE );
-			// astar
-            this.bannerHints = null;
         }
     }
 
@@ -555,14 +542,11 @@ public class AmazonAdMarketplaceMediationAdapter
         if ( mediationHints == null )
         {
             e( "Unable to find mediation hints" );
-			// astar
-			this.interstitialHints = null;
             return false;
         }
 
         apsAdController.fetchInterstitialAd( SDKUtilities.getBidInfo( mediationHints.dtbAdResponse ) );
-		// astar
-		this.interstitialHints = mediationHints;
+
         return true;
     }
 
@@ -638,47 +622,10 @@ public class AmazonAdMarketplaceMediationAdapter
         public void onAdLoaded(final ApsAd apsAd)
         {
             d( "AdView ad loaded" );
-            // astar
-			Map<String, Object> networkInfo = new HashMap<>();
-			MediationHints hints = AmazonAdMarketplaceMediationAdapter.this.bannerHints;
-			if(hints != null) {
-				try {
-					networkInfo = networkInfoFromAdResponse(hints.dtbAdResponse);
-				} catch (Throwable t) {
-					log("Error parsing ad html",t);
-				}
-			}
-
-			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
-			adTracker.adDidLoadForNetwork("amazon", "max", "banner", networkInfo);
 
             Bundle extraInfo = createExtraInfo( adFormat, apsAd.getCrid() );
             listener.onAdViewAdLoaded( apsAd.getAdView(), extraInfo );
         }
-
-		// astar
-		// - Html is no longer included... getting stuff from the object that is available now
-		/*public Map<String, Object> getNetworkInfoFromHtml(String html) {
-			Map<String, Object> networkInfo = new HashMap<>();
-
-			String jsCall = html.split("<script[^>]*>")[1].replace("</script></div>","");
-			String paramString = jsCall.replace(");","").replace(" ","").replace("amzn.dtb.loadAd(\"","");
-			String[] params = paramString.split("\",\"");
-			String domain = params[2].split(",")[0].replace("\"","");
-			networkInfo.put("bidCacheId",params[1]);
-			networkInfo.put("encodedBidCacheId",params[0]);
-			networkInfo.put("domain",domain);
-			networkInfo.put("jsCall",jsCall);
-
-			return networkInfo;
-		}*/
-		public Map<String, Object> networkInfoFromAdResponse(DTBAdResponse response) {
-			Map<String, Object> networkInfo = new HashMap<>();
-			networkInfo.put("bidId", response.getBidId());
-			networkInfo.put("creativeId", response.getCrid());
-			networkInfo.put("impressionUrl",response.getImpressionUrl());
-			return networkInfo;
-		}
 
         @Override
         public void onAdFailedToLoad(final ApsAd apsAd)
@@ -739,32 +686,9 @@ public class AmazonAdMarketplaceMediationAdapter
         {
             d( "Interstitial loaded" );
 
-			// astar
-			Map<String, Object> networkInfo = new HashMap<>();
-			MediationHints hints = AmazonAdMarketplaceMediationAdapter.this.interstitialHints;
-			if(hints != null) {
-				try {
-					networkInfo = networkInfoFromAdResponse(hints.dtbAdResponse);
-				} catch (Throwable t) {
-					log("Error parsing ad html",t);
-				}
-			}
-
-			AdNetworkTracker adTracker = DependencyInjector.getObjectWithClass(AdNetworkTracker.class);
-			adTracker.adDidLoadForNetwork("amazon", "max", "interstitial", networkInfo);
-
             Bundle extraInfo = createExtraInfo( MaxAdFormat.INTERSTITIAL, apsAd.getCrid() );
             listener.onInterstitialAdLoaded( extraInfo );
         }
-
-		// astar - html no longer included with object, getting available things from response object
-		public Map<String, Object> networkInfoFromAdResponse(DTBAdResponse response) {
-			Map<String, Object> networkInfo = new HashMap<>();
-			networkInfo.put("bidId", response.getBidId());
-			networkInfo.put("creativeId", response.getCrid());
-			networkInfo.put("impressionUrl",response.getImpressionUrl());
-			return networkInfo;
-		}
 
         @Override
         public void onAdFailedToLoad(final ApsAd apsAd)
@@ -971,6 +895,4 @@ public class AmazonAdMarketplaceMediationAdapter
             }
         }
     }
-
 }
-
